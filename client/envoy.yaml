@@ -22,6 +22,8 @@ static_resources:
                             prefix: "/"
                           route:
                             cluster: greeter_service
+#                            host_rewrite_literal: q7uygotkjh.execute-api.eu-north-1.amazonaws.com
+#                            prefix_rewrite: "/fresh-template"
                 http_filters:
                   - name: envoy.filters.http.grpc_http1_reverse_bridge
                     typed_config:
