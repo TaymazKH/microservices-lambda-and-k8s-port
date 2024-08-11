@@ -1,16 +1,1 @@
 #!/bin/sh
-
-echo "Bootstrap script started" >&2
-
-handler() {
-    echo "Handler function executed" >&2
-    /opt/envoy/envoy -c ./envoy.yaml &
-    ./client
-}
-
-handler || {
-    echo "Error running handler" >&2
-    exit 1
-}
-
-echo "Bootstrap script finished" >&2
