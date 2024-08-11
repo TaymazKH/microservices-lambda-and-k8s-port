@@ -15,4 +15,3 @@ message HelloRequest {
 message HelloResponse {
   string text = 1;
 }
-w
