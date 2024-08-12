@@ -22,47 +22,41 @@ var (
 func main() {
     flag.Parse()
 
-    // Create the HelloRequest object
-    req := &pb.HelloRequest{Name: *name}
+    helloReq := &pb.HelloRequest{
+        Name: *name,
+    }
 
-    // Encode the HelloRequest object to binary (Protocol Buffers format)
-    binReq, err := proto.Marshal(req)
+    binReq, err := proto.Marshal(helloReq)
     if err != nil {
         log.Fatalf("Failed to encode request: %v", err)
     }
 
-    // Create the HTTP request
-    httpReq, err := http.NewRequestWithContext(context.Background(), "POST", *addr, bytes.NewBuffer(binReq))
+    req, err := http.NewRequestWithContext(context.Background(), "POST", *addr, bytes.NewBuffer(binReq))
     if err != nil {
         log.Fatalf("Failed to create HTTP request: %v", err)
     }
-    httpReq.Header.Set("Content-Type", "application/octet-stream")
+    req.Header.Set("Content-Type", "application/octet-stream")
 
-    // Send the HTTP request
     client := &http.Client{Timeout: time.Duration(*timeout) * time.Second}
-    resp, err := client.Do(httpReq)
+    resp, err := client.Do(req)
     if err != nil {
         log.Fatalf("Failed to send HTTP request: %v", err)
     }
     defer resp.Body.Close()
 
-    // Check if the response status is OK
     if resp.StatusCode != http.StatusOK {
         log.Fatalf("Received non-OK response: %s", resp.Status)
     }
 
-    // Read the entire response body into a byte slice
     respBody, err := io.ReadAll(resp.Body)
     if err != nil {
         log.Fatalf("Failed to read response body: %v", err)
     }
 
-    // Decode the HelloResponse object from the binary response
     var helloResp pb.HelloResponse
     if err := proto.Unmarshal(respBody, &helloResp); err != nil {
         log.Fatalf("Failed to decode response: %v", err)
     }
 
-    // Print the greeting from the response
     log.Printf("Greeting: %s", helloResp.GetText())
 }
