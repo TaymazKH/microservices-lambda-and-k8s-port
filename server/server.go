@@ -1,76 +1,73 @@
 package main
 
 import (
-    "flag"
+    "bufio"
+    "encoding/json"
     "fmt"
-    "io"
     "log"
-    "net/http"
+    "os"
 
     "google.golang.org/protobuf/proto"
     pb "main/hello"
 )
 
-var (
-    port = flag.Int("port", 50051, "The server port")
-)
+// RequestData represents the structure of the incoming JSON string
+type RequestData struct {
+    Body     string            `json:"body"`
+    Headers  map[string]string `json:"headers"`
+    RouteKey string            `json:"routeKey"`
+}
 
-// sayHelloHandler handles the /sayhello endpoint
-func sayHelloHandler(w http.ResponseWriter, r *http.Request) {
-    if r.Method != http.MethodPost {
-        http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-        return
+func sayHelloHandler(request string) string {
+    // Parse the incoming JSON string to RequestData struct
+    var reqData RequestData
+    if err := json.Unmarshal([]byte(request), &reqData); err != nil {
+        log.Fatalf("Failed to parse request JSON: %v", err)
     }
 
-    // Read the request body into a byte slice
-    reqBody, err := io.ReadAll(r.Body)
-    if err != nil {
-        http.Error(w, "Failed to read request body", http.StatusInternalServerError)
-        return
-    }
-    defer r.Body.Close()
+    // Convert the request body string to a byte slice
+    binReqBody := []byte(reqData.Body)
 
-    // Unmarshal the request body into a HelloRequest message
-    var req pb.HelloRequest
-    if err := proto.Unmarshal(reqBody, &req); err != nil {
-        http.Error(w, "Failed to parse request", http.StatusBadRequest)
-        return
+    log.Println("Request Body:", string(binReqBody)) // todo
+
+    // Unmarshal the binary body into a HelloRequest message
+    var helloReq pb.HelloRequest
+    if err := proto.Unmarshal(binReqBody, &helloReq); err != nil {
+        log.Fatalf("Failed to unmarshal request body: %v", err)
     }
 
     // Log the received name
-    log.Printf("Received: %v", req.GetName())
+    log.Printf("Received: %v", helloReq.GetName())
 
     // Create a HelloResponse message
-    resp := &pb.HelloResponse{
-        Text: "Hello " + req.GetName(),
+    helloResp := &pb.HelloResponse{
+        Text: "Hello " + helloReq.GetName(),
     }
 
     // Marshal the HelloResponse message into binary format
-    respBody, err := proto.Marshal(resp)
+    binRespBody, err := proto.Marshal(helloResp)
     if err != nil {
-        http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-        return
+        log.Fatalf("Failed to marshal response: %v", err)
     }
 
-    // Set the content type and write the response body
-    w.Header().Set("Content-Type", "application/octet-stream")
-    _, err = w.Write(respBody)
-    if err != nil {
-        http.Error(w, "Failed to write response", http.StatusInternalServerError)
-    }
+    // Convert the binary response to a string and return it
+    return string(binRespBody)
 }
 
 func main() {
-    flag.Parse()
-
-    // Set up the HTTP server and route
-    http.HandleFunc("/sayhello", sayHelloHandler)
-
-    addr := fmt.Sprintf(":%d", *port)
-    log.Printf("Server listening on %v", addr)
-
-    // Start the HTTP server
-    if err := http.ListenAndServe(addr, nil); err != nil {
-        log.Fatalf("Failed to start server: %v", err)
+    // Read the entire input from stdin
+    reader := bufio.NewReader(os.Stdin)
+    request, err := reader.ReadString('\n')
+    if err != nil {
+        log.Fatalf("Failed to read from stdin: %v", err)
     }
+
+    // Trim any trailing newline characters from the input
+    request = request[:len(request)-1]
+
+    // Call the handler function with the input string
+    response := sayHelloHandler(request)
+
+    // Print the response to stdout
+    fmt.Println(response)
 }

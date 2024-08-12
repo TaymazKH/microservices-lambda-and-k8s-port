@@ -31,7 +31,7 @@ func main() {
     }
 
     // Create the HTTP request
-    httpReq, err := http.NewRequestWithContext(context.Background(), "POST", "http://"+*addr+"/sayhello", bytes.NewBuffer(binReq))
+    httpReq, err := http.NewRequestWithContext(context.Background(), "POST", *addr, bytes.NewBuffer(binReq))
     if err != nil {
         log.Fatalf("Failed to create HTTP request: %v", err)
     }
