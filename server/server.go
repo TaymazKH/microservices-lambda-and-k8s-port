@@ -2,6 +2,7 @@ package main
 
 import (
     "bufio"
+    "encoding/base64"
     "encoding/json"
     "fmt"
     "log"
@@ -13,9 +14,17 @@ import (
 
 // RequestData represents the structure of the incoming JSON string
 type RequestData struct {
-    Body     string            `json:"body"`
-    Headers  map[string]string `json:"headers"`
-    RouteKey string            `json:"routeKey"`
+    Body            string            `json:"body"`
+    Headers         map[string]string `json:"headers"`
+    RouteKey        string            `json:"routeKey"`
+    IsBase64Encoded bool              `json:"isBase64Encoded"`
+}
+
+// ResponseData represents the structure of the outgoing JSON string
+type ResponseData struct {
+    Body            string `json:"body"`
+    IsBase64Encoded bool   `json:"isBase64Encoded"`
+    StatusCode      int    `json:"statusCode"`
 }
 
 func sayHelloHandler(request string) string {
@@ -25,10 +34,17 @@ func sayHelloHandler(request string) string {
         log.Fatalf("Failed to parse request JSON: %v", err)
     }
 
-    // Convert the request body string to a byte slice
-    binReqBody := []byte(reqData.Body)
-
-    log.Println("Request Body:", string(binReqBody)) // todo
+    // Decode the request body if it is base64 encoded
+    var binReqBody []byte
+    if reqData.IsBase64Encoded {
+        var err error
+        binReqBody, err = base64.StdEncoding.DecodeString(reqData.Body)
+        if err != nil {
+            log.Fatalf("Failed to decode base64 body: %v", err)
+        }
+    } else {
+        binReqBody = []byte(reqData.Body)
+    }
 
     // Unmarshal the binary body into a HelloRequest message
     var helloReq pb.HelloRequest
@@ -50,8 +66,24 @@ func sayHelloHandler(request string) string {
         log.Fatalf("Failed to marshal response: %v", err)
     }
 
+    // Base64 encode the binary response body for safe inclusion in JSON
+    encodedRespBody := base64.StdEncoding.EncodeToString(binRespBody) // Base64 encoding is optional.
+
+    // Create the JSON response structure
+    respData := ResponseData{
+        Body:            encodedRespBody, // Use `binRespBody` if not encoded.
+        IsBase64Encoded: true,
+        StatusCode:      200,
+    }
+
+    // Marshal the response structure into a JSON string
+    jsonResponse, err := json.Marshal(respData)
+    if err != nil {
+        log.Fatalf("Failed to marshal JSON response: %v", err)
+    }
+
     // Convert the binary response to a string and return it
-    return string(binRespBody)
+    return string(jsonResponse)
 }
 
 func main() {

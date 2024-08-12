@@ -14,8 +14,9 @@ import (
 )
 
 var (
-    addr = flag.String("addr", "localhost:50051", "the address to connect to")
-    name = flag.String("name", "world", "Name to greet")
+    addr    = flag.String("addr", "localhost:50051", "the address to connect to")
+    name    = flag.String("name", "world", "Name to greet")
+    timeout = flag.Int("timeout", 5, "Timeout in seconds")
 )
 
 func main() {
@@ -38,7 +39,7 @@ func main() {
     httpReq.Header.Set("Content-Type", "application/octet-stream")
 
     // Send the HTTP request
-    client := &http.Client{Timeout: time.Second}
+    client := &http.Client{Timeout: time.Duration(*timeout) * time.Second}
     resp, err := client.Do(httpReq)
     if err != nil {
         log.Fatalf("Failed to send HTTP request: %v", err)
