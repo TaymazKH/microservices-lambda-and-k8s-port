@@ -4,6 +4,7 @@ import (
     "bytes"
     "context"
     "flag"
+    "fmt"
     "io"
     "log"
     "net/http"
@@ -59,4 +60,5 @@ func main() {
     }
 
     log.Printf("Greeting: %s", helloResp.GetText())
+    fmt.Println(helloResp.GetText())
 }
