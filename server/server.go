@@ -12,11 +12,19 @@ import (
     pb "main/hello"
 )
 
+// RequestContext represents the nested context of the request
+type RequestContext struct {
+    HTTP struct {
+        Method string `json:"method"`
+        Path   string `json:"path"`
+    } `json:"http"`
+}
+
 // RequestData represents the structure of the incoming JSON string
 type RequestData struct {
     Body            string            `json:"body"`
     Headers         map[string]string `json:"headers"`
-    RouteKey        string            `json:"routeKey"`
+    RequestContext  RequestContext    `json:"requestContext"`
     IsBase64Encoded bool              `json:"isBase64Encoded"`
 }
 
@@ -28,7 +36,8 @@ type ResponseData struct {
     IsBase64Encoded bool              `json:"isBase64Encoded"`
 }
 
-func sayHelloHandler(request string) string {
+// decodeRequest decodes the incoming JSON request into the protobuf message
+func decodeRequest(request string) (*pb.HelloRequest, RequestData, error) {
     var reqData RequestData
     if err := json.Unmarshal([]byte(request), &reqData); err != nil {
         log.Fatalf("Failed to parse request JSON: %v", err)
@@ -50,12 +59,22 @@ func sayHelloHandler(request string) string {
         log.Fatalf("Failed to unmarshal request body: %v", err)
     }
 
+    return &helloReq, reqData, nil
+}
+
+// sayHelloHandler processes the HelloRequest and returns a HelloResponse
+func sayHelloHandler(helloReq *pb.HelloRequest) (*pb.HelloResponse, error) {
     log.Printf("Received: %v", helloReq.GetName())
 
     helloResp := &pb.HelloResponse{
         Text: "Hello " + helloReq.GetName(),
     }
 
+    return helloResp, nil
+}
+
+// encodeResponse encodes the protobuf response into the outgoing JSON response
+func encodeResponse(helloResp *pb.HelloResponse) (string, error) {
     binRespBody, err := proto.Marshal(helloResp)
     if err != nil {
         log.Fatalf("Failed to marshal response: %v", err)
@@ -75,7 +94,7 @@ func sayHelloHandler(request string) string {
         log.Fatalf("Failed to marshal JSON response: %v", err)
     }
 
-    return string(jsonResponse)
+    return string(jsonResponse), nil
 }
 
 func main() {
@@ -85,6 +104,21 @@ func main() {
         log.Fatalf("Failed to read from stdin: %v", err)
     }
     request = request[:len(request)-1] // Trim any trailing newline characters
-    response := sayHelloHandler(request)
+
+    helloReq, _, err := decodeRequest(request)
+    if err != nil {
+        log.Fatalf("Error decoding request: %v", err)
+    }
+
+    helloResp, err := sayHelloHandler(helloReq)
+    if err != nil {
+        log.Fatalf("Handler error: %v", err)
+    }
+
+    response, err := encodeResponse(helloResp)
+    if err != nil {
+        log.Fatalf("Error encoding response: %v", err)
+    }
+
     fmt.Println(response)
 }
