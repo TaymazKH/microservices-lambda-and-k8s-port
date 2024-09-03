@@ -31,16 +31,13 @@ func marshalRequest(helloReq *pb.HelloRequest) ([]byte, error) {
 
 // sendRequest sends an HTTP POST request with the given byte array and returns the response body as a byte array.
 func sendRequest(addr string, binReq []byte, timeout int) ([]byte, error) {
-    ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Second)
-    defer cancel()
-
-    req, err := http.NewRequestWithContext(ctx, "POST", addr, bytes.NewBuffer(binReq))
+    req, err := http.NewRequestWithContext(context.Background(), "POST", addr, bytes.NewBuffer(binReq))
     if err != nil {
         return nil, fmt.Errorf("failed to create HTTP request: %v", err)
     }
     req.Header.Set("Content-Type", "application/octet-stream")
 
-    client := &http.Client{}
+    client := &http.Client{Timeout: time.Duration(timeout)}
     resp, err := client.Do(req)
     if err != nil {
         return nil, fmt.Errorf("failed to send HTTP request: %v", err)
