@@ -21,6 +21,7 @@
 bin/
 build/
 Dockerfile.pip
+genproto/
 node_modules/
 obj/
 pkg/
