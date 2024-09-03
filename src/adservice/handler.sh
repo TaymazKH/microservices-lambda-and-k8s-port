@@ -4,7 +4,7 @@ function handler () {
     EVENT_DATA=$1
     echo "Event data: $EVENT_DATA" >&2
 
-    RESPONSE=$(echo "$EVENT_DATA" | ./adservice)
+    RESPONSE=$(echo "$EVENT_DATA" | ./service)
     echo "Response: $RESPONSE" >&2
     echo $RESPONSE
 
