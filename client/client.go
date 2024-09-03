@@ -37,7 +37,7 @@ func sendRequest(addr string, binReq []byte, timeout int) ([]byte, error) {
     }
     req.Header.Set("Content-Type", "application/octet-stream")
 
-    client := &http.Client{Timeout: time.Duration(timeout)}
+    client := &http.Client{Timeout: time.Duration(timeout) * time.Second}
     resp, err := client.Do(req)
     if err != nil {
         return nil, fmt.Errorf("failed to send HTTP request: %v", err)
