@@ -47,7 +47,7 @@ func handleSayHello(helloRequest *pb.HelloRequest) (*pb.HelloResponse, error) {
     return helloResp, nil
 }
 
-// handleSayBye processes the HelloRequest and returns a HelloResponse
+// handleSayBye processes the ByeRequest and returns a ByeResponse
 func handleSayBye(byeRequest *pb.ByeRequest) (*pb.ByeResponse, error) {
     log.Printf("Received: %v", byeRequest.GetName())
 
