@@ -36,11 +36,45 @@ type ResponseData struct {
     IsBase64Encoded bool              `json:"isBase64Encoded"`
 }
 
-// decodeRequest decodes the incoming JSON request into the protobuf message
-func decodeRequest(request string) (*pb.HelloRequest, RequestData, error) {
+// handleSayHello processes the HelloRequest and returns a HelloResponse
+func handleSayHello(helloRequest *pb.HelloRequest) (*pb.HelloResponse, error) {
+    log.Printf("Received: %v", helloRequest.GetName())
+
+    helloResp := &pb.HelloResponse{
+        Text: "Hello " + helloRequest.GetName(),
+    }
+
+    return helloResp, nil
+}
+
+// handleSayBye processes the HelloRequest and returns a HelloResponse
+func handleSayBye(byeRequest *pb.ByeRequest) (*pb.ByeResponse, error) {
+    log.Printf("Received: %v", byeRequest.GetName())
+
+    byeResp := &pb.ByeResponse{
+        Text: "Bye " + byeRequest.GetName(),
+    }
+
+    return byeResp, nil
+}
+
+// handleRequest chooses the correct handler function to call
+func handleRequest(msg proto.Message, reqData *RequestData) (proto.Message, error) {
+    switch reqData.RequestContext.HTTP.Path {
+    case "/SayHello":
+        return handleSayHello(msg.(*pb.HelloRequest))
+    case "/SayBye":
+        return handleSayBye(msg.(*pb.ByeRequest))
+    default:
+        return nil, fmt.Errorf("unknown path: %s", reqData.RequestContext.HTTP.Path)
+    }
+}
+
+// decodeRequest decodes the incoming JSON request into a protobuf message
+func decodeRequest(request string) (*proto.Message, *RequestData, error) {
     var reqData RequestData
     if err := json.Unmarshal([]byte(request), &reqData); err != nil {
-        log.Fatalf("Failed to parse request JSON: %v", err)
+        return nil, nil, fmt.Errorf("failed to parse request JSON: %w", err)
     }
 
     var binReqBody []byte
@@ -48,36 +82,25 @@ func decodeRequest(request string) (*pb.HelloRequest, RequestData, error) {
         var err error
         binReqBody, err = base64.StdEncoding.DecodeString(reqData.Body)
         if err != nil {
-            log.Fatalf("Failed to decode base64 body: %v", err)
+            return nil, nil, fmt.Errorf("failed to decode base64 body: %w", err)
         }
     } else {
         binReqBody = []byte(reqData.Body)
     }
 
-    var helloReq pb.HelloRequest
-    if err := proto.Unmarshal(binReqBody, &helloReq); err != nil {
-        log.Fatalf("Failed to unmarshal request body: %v", err)
+    var msg proto.Message
+    if err := proto.Unmarshal(binReqBody, msg); err != nil {
+        return nil, nil, fmt.Errorf("failed to unmarshal request body: %w", err)
     }
 
-    return &helloReq, reqData, nil
-}
-
-// sayHelloHandler processes the HelloRequest and returns a HelloResponse
-func sayHelloHandler(helloReq *pb.HelloRequest) (*pb.HelloResponse, error) {
-    log.Printf("Received: %v", helloReq.GetName())
-
-    helloResp := &pb.HelloResponse{
-        Text: "Hello " + helloReq.GetName(),
-    }
-
-    return helloResp, nil
+    return &msg, &reqData, nil
 }
 
 // encodeResponse encodes the protobuf response into the outgoing JSON response
-func encodeResponse(helloResp *pb.HelloResponse) (string, error) {
-    binRespBody, err := proto.Marshal(helloResp)
+func encodeResponse(msg proto.Message) (string, error) {
+    binRespBody, err := proto.Marshal(msg)
     if err != nil {
-        log.Fatalf("Failed to marshal response: %v", err)
+        return "", fmt.Errorf("failed to marshal response: %w", err)
     }
 
     encodedRespBody := base64.StdEncoding.EncodeToString(binRespBody) // Base64 encoding is optional.
@@ -91,7 +114,7 @@ func encodeResponse(helloResp *pb.HelloResponse) (string, error) {
 
     jsonResponse, err := json.Marshal(respData)
     if err != nil {
-        log.Fatalf("Failed to marshal JSON response: %v", err)
+        return "", fmt.Errorf("failed to marshal JSON response: %w", err)
     }
 
     return string(jsonResponse), nil
@@ -105,12 +128,12 @@ func main() {
     }
     request = request[:len(request)-1] // Trim any trailing newline characters
 
-    helloReq, _, err := decodeRequest(request)
+    msg, reqData, err := decodeRequest(request)
     if err != nil {
         log.Fatalf("Error decoding request: %v", err)
     }
 
-    helloResp, err := sayHelloHandler(helloReq)
+    helloResp, err := handleRequest(*msg, reqData)
     if err != nil {
         log.Fatalf("Handler error: %v", err)
     }
