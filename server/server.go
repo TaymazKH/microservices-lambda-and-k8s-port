@@ -61,9 +61,9 @@ func handleSayBye(byeRequest *pb.ByeRequest) (*pb.ByeResponse, error) {
 // handleRequest chooses the correct handler function to call
 func handleRequest(msg proto.Message, reqData *RequestData) (proto.Message, error) {
     switch reqData.RequestContext.HTTP.Path {
-    case "/SayHello":
+    case "/greeter/say-hello":
         return handleSayHello(msg.(*pb.HelloRequest))
-    case "/SayBye":
+    case "/greeter/say-bye":
         return handleSayBye(msg.(*pb.ByeRequest))
     default:
         return nil, fmt.Errorf("unknown path: %s", reqData.RequestContext.HTTP.Path)
@@ -89,6 +89,15 @@ func decodeRequest(request string) (*proto.Message, *RequestData, error) {
     }
 
     var msg proto.Message
+    switch reqData.RequestContext.HTTP.Path {
+    case "/greeter/say-hello":
+        msg = &pb.HelloRequest{}
+    case "/greeter/say-bye":
+        msg = &pb.ByeRequest{}
+    default:
+        return nil, nil, fmt.Errorf("unknown path: %s", reqData.RequestContext.HTTP.Path)
+    }
+
     if err := proto.Unmarshal(binReqBody, msg); err != nil {
         return nil, nil, fmt.Errorf("failed to unmarshal request body: %w", err)
     }
