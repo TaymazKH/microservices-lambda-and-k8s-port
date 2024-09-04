@@ -1,10 +1,9 @@
 syntax = "proto3";
 
-option go_package = "./hello";
-
 
 service Greeter {
   rpc SayHello(HelloRequest) returns (HelloResponse) {}
+  rpc SayBye(ByeRequest) returns (ByeResponse) {}
 }
 
 
@@ -13,5 +12,13 @@ message HelloRequest {
 }
 
 message HelloResponse {
+  string text = 1;
+}
+
+message ByeRequest {
+  string name = 1;
+}
+
+message ByeResponse {
   string text = 1;
 }

@@ -9,7 +9,7 @@ import (
     "os"
 
     "google.golang.org/protobuf/proto"
-    pb "main/hello"
+    pb "main/genproto"
 )
 
 // RequestContext represents the nested context of the request

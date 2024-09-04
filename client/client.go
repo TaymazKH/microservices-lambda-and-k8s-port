@@ -11,7 +11,7 @@ import (
     "time"
 
     "google.golang.org/protobuf/proto"
-    pb "main/hello"
+    pb "main/genproto"
 )
 
 var (
