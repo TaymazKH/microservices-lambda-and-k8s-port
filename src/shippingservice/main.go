@@ -15,161 +15,166 @@
 package main
 
 import (
-	"fmt"
-	"net"
-	"os"
-	"time"
+    "bufio"
+    "encoding/base64"
+    "encoding/json"
+    "fmt"
+    "google.golang.org/protobuf/proto"
+    "log"
+    "os"
 
-	"cloud.google.com/go/profiler"
-	"github.com/sirupsen/logrus"
-	"golang.org/x/net/context"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/reflection"
-	"google.golang.org/grpc/status"
-
-	pb "github.com/GoogleCloudPlatform/microservices-demo/src/shippingservice/genproto"
-	healthpb "google.golang.org/grpc/health/grpc_health_v1"
+    pb "main/genproto"
 )
 
-const (
-	defaultPort = "50051"
-)
-
-var log *logrus.Logger
-
-func init() {
-	log = logrus.New()
-	log.Level = logrus.DebugLevel
-	log.Formatter = &logrus.JSONFormatter{
-		FieldMap: logrus.FieldMap{
-			logrus.FieldKeyTime:  "timestamp",
-			logrus.FieldKeyLevel: "severity",
-			logrus.FieldKeyMsg:   "message",
-		},
-		TimestampFormat: time.RFC3339Nano,
-	}
-	log.Out = os.Stdout
+// RequestContext represents the nested context of the request
+type RequestContext struct {
+    HTTP struct {
+        Method string `json:"method"`
+        Path   string `json:"path"`
+    } `json:"http"`
 }
 
-func main() {
-	if os.Getenv("DISABLE_TRACING") == "" {
-		log.Info("Tracing enabled, but temporarily unavailable")
-		log.Info("See https://github.com/GoogleCloudPlatform/microservices-demo/issues/422 for more info.")
-		go initTracing()
-	} else {
-		log.Info("Tracing disabled.")
-	}
-
-	if os.Getenv("DISABLE_PROFILER") == "" {
-		log.Info("Profiling enabled.")
-		go initProfiling("shippingservice", "1.0.0")
-	} else {
-		log.Info("Profiling disabled.")
-	}
-
-	port := defaultPort
-	if value, ok := os.LookupEnv("PORT"); ok {
-		port = value
-	}
-	port = fmt.Sprintf(":%s", port)
-
-	lis, err := net.Listen("tcp", port)
-	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
-	}
-
-	var srv *grpc.Server
-	if os.Getenv("DISABLE_STATS") == "" {
-		log.Info("Stats enabled, but temporarily unavailable")
-		srv = grpc.NewServer()
-	} else {
-		log.Info("Stats disabled.")
-		srv = grpc.NewServer()
-	}
-	svc := &server{}
-	pb.RegisterShippingServiceServer(srv, svc)
-	healthpb.RegisterHealthServer(srv, svc)
-	log.Infof("Shipping Service listening on port %s", port)
-
-	// Register reflection service on gRPC server.
-	reflection.Register(srv)
-	if err := srv.Serve(lis); err != nil {
-		log.Fatalf("failed to serve: %v", err)
-	}
+// RequestData represents the structure of the incoming JSON string
+type RequestData struct {
+    Body            string            `json:"body"`
+    Headers         map[string]string `json:"headers"`
+    RequestContext  RequestContext    `json:"requestContext"`
+    IsBase64Encoded bool              `json:"isBase64Encoded"`
 }
 
-// server controls RPC service responses.
-type server struct{}
-
-// Check is for health checking.
-func (s *server) Check(ctx context.Context, req *healthpb.HealthCheckRequest) (*healthpb.HealthCheckResponse, error) {
-	return &healthpb.HealthCheckResponse{Status: healthpb.HealthCheckResponse_SERVING}, nil
-}
-
-func (s *server) Watch(req *healthpb.HealthCheckRequest, ws healthpb.Health_WatchServer) error {
-	return status.Errorf(codes.Unimplemented, "health check via Watch not implemented")
+// ResponseData represents the structure of the outgoing JSON string
+type ResponseData struct {
+    StatusCode      int               `json:"statusCode"`
+    Headers         map[string]string `json:"headers"`
+    Body            string            `json:"body"`
+    IsBase64Encoded bool              `json:"isBase64Encoded"`
 }
 
 // GetQuote produces a shipping quote (cost) in USD.
-func (s *server) GetQuote(ctx context.Context, in *pb.GetQuoteRequest) (*pb.GetQuoteResponse, error) {
-	log.Info("[GetQuote] received request")
-	defer log.Info("[GetQuote] completed request")
+func handleGetQuote(in *pb.GetQuoteRequest) (*pb.GetQuoteResponse, error) {
+    log.Print("[GetQuote] received request")
+    defer log.Print("[GetQuote] completed request")
 
-	// 1. Generate a quote based on the total number of items to be shipped.
-	quote := CreateQuoteFromCount(0)
+    // 1. Generate a quote based on the total number of items to be shipped.
+    quote := CreateQuoteFromCount(0)
 
-	// 2. Generate a response.
-	return &pb.GetQuoteResponse{
-		CostUsd: &pb.Money{
-			CurrencyCode: "USD",
-			Units:        int64(quote.Dollars),
-			Nanos:        int32(quote.Cents * 10000000)},
-	}, nil
-
+    // 2. Generate a response.
+    return &pb.GetQuoteResponse{
+        CostUsd: &pb.Money{
+            CurrencyCode: "USD",
+            Units:        int64(quote.Dollars),
+            Nanos:        int32(quote.Cents * 10000000)},
+    }, nil
 }
 
 // ShipOrder mocks that the requested items will be shipped.
 // It supplies a tracking ID for notional lookup of shipment delivery status.
-func (s *server) ShipOrder(ctx context.Context, in *pb.ShipOrderRequest) (*pb.ShipOrderResponse, error) {
-	log.Info("[ShipOrder] received request")
-	defer log.Info("[ShipOrder] completed request")
-	// 1. Create a Tracking ID
-	baseAddress := fmt.Sprintf("%s, %s, %s", in.Address.StreetAddress, in.Address.City, in.Address.State)
-	id := CreateTrackingId(baseAddress)
+func handleShipOrder(in *pb.ShipOrderRequest) (*pb.ShipOrderResponse, error) {
+    log.Print("[ShipOrder] received request")
+    defer log.Print("[ShipOrder] completed request")
+    // 1. Create a Tracking ID
+    baseAddress := fmt.Sprintf("%s, %s, %s", in.Address.StreetAddress, in.Address.City, in.Address.State)
+    id := CreateTrackingId(baseAddress)
 
-	// 2. Generate a response.
-	return &pb.ShipOrderResponse{
-		TrackingId: id,
-	}, nil
+    // 2. Generate a response.
+    return &pb.ShipOrderResponse{
+        TrackingId: id,
+    }, nil
 }
 
-func initStats() {
-	//TODO(arbrown) Implement OpenTelemetry stats
+// handleRequest chooses the correct handler function to call
+func handleRequest(msg proto.Message, reqData *RequestData) (proto.Message, error) {
+    switch reqData.RequestContext.HTTP.Path {
+    case "/shipping-service/get-quote":
+        return handleGetQuote(msg.(*pb.GetQuoteRequest))
+    case "/shipping-service/ship-order":
+        return handleShipOrder(msg.(*pb.ShipOrderRequest))
+    default:
+        return nil, fmt.Errorf("unknown path: %s", reqData.RequestContext.HTTP.Path)
+    }
 }
 
-func initTracing() {
-	// TODO(arbrown) Implement OpenTelemetry tracing
+// decodeRequest decodes the incoming JSON request into a protobuf message
+func decodeRequest(request string) (*proto.Message, *RequestData, error) {
+    var reqData RequestData
+    if err := json.Unmarshal([]byte(request), &reqData); err != nil {
+        return nil, nil, fmt.Errorf("failed to parse request JSON: %w", err)
+    }
+
+    var binReqBody []byte
+    if reqData.IsBase64Encoded {
+        var err error
+        binReqBody, err = base64.StdEncoding.DecodeString(reqData.Body)
+        if err != nil {
+            return nil, nil, fmt.Errorf("failed to decode base64 body: %w", err)
+        }
+    } else {
+        binReqBody = []byte(reqData.Body)
+    }
+
+    var msg proto.Message
+    switch reqData.RequestContext.HTTP.Path {
+    case "/shipping-service/get-quote":
+        msg = &pb.GetQuoteRequest{}
+    case "/shipping-service/ship-order":
+        msg = &pb.ShipOrderRequest{}
+    default:
+        return nil, nil, fmt.Errorf("unknown path: %s", reqData.RequestContext.HTTP.Path)
+    }
+
+    if err := proto.Unmarshal(binReqBody, msg); err != nil {
+        return nil, nil, fmt.Errorf("failed to unmarshal request body: %w", err)
+    }
+
+    return &msg, &reqData, nil
 }
 
-func initProfiling(service, version string) {
-	// TODO(ahmetb) this method is duplicated in other microservices using Go
-	// since they are not sharing packages.
-	for i := 1; i <= 3; i++ {
-		if err := profiler.Start(profiler.Config{
-			Service:        service,
-			ServiceVersion: version,
-			// ProjectID must be set if not running on GCP.
-			// ProjectID: "my-project",
-		}); err != nil {
-			log.Warnf("failed to start profiler: %+v", err)
-		} else {
-			log.Info("started Stackdriver profiler")
-			return
-		}
-		d := time.Second * 10 * time.Duration(i)
-		log.Infof("sleeping %v to retry initializing Stackdriver profiler", d)
-		time.Sleep(d)
-	}
-	log.Warn("could not initialize Stackdriver profiler after retrying, giving up")
+// encodeResponse encodes the protobuf response into the outgoing JSON response
+func encodeResponse(msg proto.Message) (string, error) {
+    binRespBody, err := proto.Marshal(msg)
+    if err != nil {
+        return "", fmt.Errorf("failed to marshal response: %w", err)
+    }
+
+    encodedRespBody := base64.StdEncoding.EncodeToString(binRespBody) // Base64 encoding is optional.
+
+    respData := ResponseData{
+        StatusCode:      200,
+        Headers:         map[string]string{"Content-Type": "application/octet-stream"},
+        Body:            encodedRespBody, // Use `binRespBody` if not encoded.
+        IsBase64Encoded: true,
+    }
+
+    jsonResponse, err := json.Marshal(respData)
+    if err != nil {
+        return "", fmt.Errorf("failed to marshal JSON response: %w", err)
+    }
+
+    return string(jsonResponse), nil
+}
+
+func main() {
+    reader := bufio.NewReader(os.Stdin)
+    request, err := reader.ReadString('\n')
+    if err != nil {
+        log.Fatalf("Failed to read from stdin: %v", err)
+    }
+    request = request[:len(request)-1] // Trim any trailing newline characters
+
+    msg, reqData, err := decodeRequest(request)
+    if err != nil {
+        log.Fatalf("Error decoding request: %v", err)
+    }
+
+    helloResp, err := handleRequest(*msg, reqData)
+    if err != nil {
+        log.Fatalf("Handler error: %v", err)
+    }
+
+    response, err := encodeResponse(helloResp)
+    if err != nil {
+        log.Fatalf("Error encoding response: %v", err)
+    }
+
+    fmt.Println(response)
 }
