@@ -15,29 +15,20 @@
 package main
 
 import (
-    "context"
+    "bufio"
+    "encoding/base64"
+    "encoding/json"
     "flag"
     "fmt"
-    "net"
     "os"
     "os/signal"
     "sync"
     "syscall"
     "time"
 
-    "google.golang.org/grpc/credentials/insecure"
-    healthpb "google.golang.org/grpc/health/grpc_health_v1"
-    pb "main/genproto"
-
-    "cloud.google.com/go/profiler"
-    "github.com/pkg/errors"
     "github.com/sirupsen/logrus"
-    "go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
-    "go.opentelemetry.io/otel"
-    "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
-    "go.opentelemetry.io/otel/propagation"
-    sdktrace "go.opentelemetry.io/otel/sdk/trace"
-    "google.golang.org/grpc"
+    "google.golang.org/protobuf/proto"
+    pb "main/genproto"
 )
 
 var (
@@ -45,7 +36,7 @@ var (
     log          *logrus.Logger
     extraLatency time.Duration
 
-    port = "3550"
+    svc = &productCatalog{}
 
     reloadCatalog bool
 )
@@ -64,23 +55,106 @@ func init() {
     catalogMutex = &sync.Mutex{}
 }
 
-func main() {
-    if os.Getenv("ENABLE_TRACING") == "1" {
-        err := initTracing()
+// RequestContext represents the nested context of the request
+type RequestContext struct {
+    HTTP struct {
+        Method string `json:"method"`
+        Path   string `json:"path"`
+    } `json:"http"`
+}
+
+// RequestData represents the structure of the incoming JSON string
+type RequestData struct {
+    Body            string            `json:"body"`
+    Headers         map[string]string `json:"headers"`
+    RequestContext  RequestContext    `json:"requestContext"`
+    IsBase64Encoded bool              `json:"isBase64Encoded"`
+}
+
+// ResponseData represents the structure of the outgoing JSON string
+type ResponseData struct {
+    StatusCode      int               `json:"statusCode"`
+    Headers         map[string]string `json:"headers"`
+    Body            string            `json:"body"`
+    IsBase64Encoded bool              `json:"isBase64Encoded"`
+}
+
+// handleRequest chooses the correct handler function to call
+func handleRequest(msg proto.Message, reqData *RequestData) (proto.Message, error) {
+    switch reqData.RequestContext.HTTP.Path {
+    case "/product-catalog-service/list-products":
+        return svc.ListProducts(msg.(*pb.Empty))
+    case "/product-catalog-service/get-product":
+        return svc.GetProduct(msg.(*pb.GetProductRequest))
+    case "/product-catalog-service/search-products":
+        return svc.SearchProducts(msg.(*pb.SearchProductsRequest))
+    default:
+        return nil, fmt.Errorf("unknown path: %s", reqData.RequestContext.HTTP.Path)
+    }
+}
+
+// decodeRequest decodes the incoming JSON request into a protobuf message
+func decodeRequest(request string) (*proto.Message, *RequestData, error) {
+    var reqData RequestData
+    if err := json.Unmarshal([]byte(request), &reqData); err != nil {
+        return nil, nil, fmt.Errorf("failed to parse request JSON: %w", err)
+    }
+
+    var binReqBody []byte
+    if reqData.IsBase64Encoded {
+        var err error
+        binReqBody, err = base64.StdEncoding.DecodeString(reqData.Body)
         if err != nil {
-            log.Warnf("warn: failed to start tracer: %+v", err)
+            return nil, nil, fmt.Errorf("failed to decode base64 body: %w", err)
         }
     } else {
-        log.Info("Tracing disabled.")
+        binReqBody = []byte(reqData.Body)
     }
 
-    if os.Getenv("DISABLE_PROFILER") == "" {
-        log.Info("Profiling enabled.")
-        go initProfiling("productcatalogservice", "1.0.0")
-    } else {
-        log.Info("Profiling disabled.")
+    var msg proto.Message
+    switch reqData.RequestContext.HTTP.Path {
+    case "/product-catalog-service/list-products":
+        msg = &pb.Empty{}
+    case "/product-catalog-service/get-product":
+        msg = &pb.GetProductRequest{}
+    case "/product-catalog-service/search-products":
+        msg = &pb.SearchProductsRequest{}
+    default:
+        return nil, nil, fmt.Errorf("unknown path: %s", reqData.RequestContext.HTTP.Path)
     }
 
+    if err := proto.Unmarshal(binReqBody, msg); err != nil {
+        return nil, nil, fmt.Errorf("failed to unmarshal request body: %w", err)
+    }
+
+    return &msg, &reqData, nil
+}
+
+// encodeResponse encodes the protobuf response into the outgoing JSON response
+func encodeResponse(msg proto.Message) (string, error) {
+    binRespBody, err := proto.Marshal(msg)
+    if err != nil {
+        return "", fmt.Errorf("failed to marshal response: %w", err)
+    }
+
+    encodedRespBody := base64.StdEncoding.EncodeToString(binRespBody) // Base64 encoding is optional.
+
+    respData := ResponseData{
+        StatusCode:      200,
+        Headers:         map[string]string{"Content-Type": "application/octet-stream"},
+        Body:            encodedRespBody, // Use `binRespBody` if not encoded.
+        IsBase64Encoded: true,
+    }
+
+    jsonResponse, err := json.Marshal(respData)
+    if err != nil {
+        return "", fmt.Errorf("failed to marshal JSON response: %w", err)
+    }
+
+    return string(jsonResponse), nil
+}
+
+func main() {
     flag.Parse()
 
     // set injected latency
@@ -111,107 +185,29 @@ func main() {
         }
     }()
 
-    if os.Getenv("PORT") != "" {
-        port = os.Getenv("PORT")
+    reader := bufio.NewReader(os.Stdin)
+    request, err := reader.ReadString('\n')
+    if err != nil {
+        log.Fatalf("Failed to read from stdin: %v", err)
     }
-    log.Infof("starting grpc server at :%s", port)
-    run(port)
+    request = request[:len(request)-1]
+
+    msg, reqData, err := decodeRequest(request)
+    if err != nil {
+        log.Fatalf("Error decoding request: %v", err)
+    }
+
+    helloResp, err := handleRequest(*msg, reqData)
+    if err != nil {
+        log.Fatalf("Handler error: %v", err)
+    }
+
+    response, err := encodeResponse(helloResp)
+    if err != nil {
+        log.Fatalf("Error encoding response: %v", err)
+    }
+
+    fmt.Println(response)
+
     select {}
-}
-
-func run(port string) string {
-    listener, err := net.Listen("tcp", fmt.Sprintf(":%s", port))
-    if err != nil {
-        log.Fatal(err)
-    }
-
-    // Propagate trace context
-    otel.SetTextMapPropagator(
-        propagation.NewCompositeTextMapPropagator(
-            propagation.TraceContext{}, propagation.Baggage{}))
-    var srv *grpc.Server
-    srv = grpc.NewServer(
-        grpc.UnaryInterceptor(otelgrpc.UnaryServerInterceptor()),
-        grpc.StreamInterceptor(otelgrpc.StreamServerInterceptor()))
-
-    svc := &productCatalog{}
-    err = loadCatalog(&svc.catalog)
-    if err != nil {
-        log.Fatalf("could not parse product catalog: %v", err)
-    }
-
-    pb.RegisterProductCatalogServiceServer(srv, svc)
-    healthpb.RegisterHealthServer(srv, svc)
-    go srv.Serve(listener)
-
-    return listener.Addr().String()
-}
-
-func initStats() {
-    // TODO(drewbr) Implement OpenTelemetry stats
-}
-
-func initTracing() error {
-    var (
-        collectorAddr string
-        collectorConn *grpc.ClientConn
-    )
-
-    ctx := context.Background()
-
-    mustMapEnv(&collectorAddr, "COLLECTOR_SERVICE_ADDR")
-    mustConnGRPC(ctx, &collectorConn, collectorAddr)
-
-    exporter, err := otlptracegrpc.New(
-        ctx,
-        otlptracegrpc.WithGRPCConn(collectorConn))
-    if err != nil {
-        log.Warnf("warn: Failed to create trace exporter: %v", err)
-    }
-    tp := sdktrace.NewTracerProvider(
-        sdktrace.WithBatcher(exporter),
-        sdktrace.WithSampler(sdktrace.AlwaysSample()))
-    otel.SetTracerProvider(tp)
-    return err
-}
-
-func initProfiling(service, version string) {
-    for i := 1; i <= 3; i++ {
-        if err := profiler.Start(profiler.Config{
-            Service:        service,
-            ServiceVersion: version,
-            // ProjectID must be set if not running on GCP.
-            // ProjectID: "my-project",
-        }); err != nil {
-            log.Warnf("failed to start profiler: %+v", err)
-        } else {
-            log.Info("started Stackdriver profiler")
-            return
-        }
-        d := time.Second * 10 * time.Duration(i)
-        log.Infof("sleeping %v to retry initializing Stackdriver profiler", d)
-        time.Sleep(d)
-    }
-    log.Warn("could not initialize Stackdriver profiler after retrying, giving up")
-}
-
-func mustMapEnv(target *string, envKey string) {
-    v := os.Getenv(envKey)
-    if v == "" {
-        panic(fmt.Sprintf("environment variable %q not set", envKey))
-    }
-    *target = v
-}
-
-func mustConnGRPC(ctx context.Context, conn **grpc.ClientConn, addr string) {
-    var err error
-    ctx, cancel := context.WithTimeout(ctx, time.Second*3)
-    defer cancel()
-    *conn, err = grpc.DialContext(ctx, addr,
-        grpc.WithTransportCredentials(insecure.NewCredentials()),
-        grpc.WithUnaryInterceptor(otelgrpc.UnaryClientInterceptor()),
-        grpc.WithStreamInterceptor(otelgrpc.StreamClientInterceptor()))
-    if err != nil {
-        panic(errors.Wrapf(err, "grpc: failed to connect %s", addr))
-    }
 }
