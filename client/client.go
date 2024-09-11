@@ -26,8 +26,8 @@ const (
     sayByeRPC      = "say-bye"
 )
 
-// sayHello sends a HelloRequest to server and returns a HelloResponse
-func sayHello(helloRequest *pb.HelloRequest) (*pb.HelloResponse, error) {
+// SayHello sends a HelloRequest to server and returns a HelloResponse
+func SayHello(helloRequest *pb.HelloRequest) (*pb.HelloResponse, error) {
     binReq, err := marshalRequest(helloRequest)
     if err != nil {
         return nil, err
@@ -47,8 +47,8 @@ func sayHello(helloRequest *pb.HelloRequest) (*pb.HelloResponse, error) {
     return (*msg).(*pb.HelloResponse), nil
 }
 
-// sayBye sends a ByeRequest to server and returns a ByeResponse
-func sayBye(byeRequest *pb.ByeRequest) (*pb.ByeResponse, error) {
+// SayBye sends a ByeRequest to server and returns a ByeResponse
+func SayBye(byeRequest *pb.ByeRequest) (*pb.ByeResponse, error) {
     binReq, err := marshalRequest(byeRequest)
     if err != nil {
         return nil, err
@@ -130,7 +130,7 @@ func main() {
         Name: *name,
     }
 
-    helloResp, err := sayHello(helloReq)
+    helloResp, err := SayHello(helloReq)
     if err != nil {
         log.Fatalf("Error calling SayHello RPC: %v", err)
     }
@@ -141,7 +141,7 @@ func main() {
         Name: *name,
     }
 
-    byeResp, err := sayBye(byeReq)
+    byeResp, err := SayBye(byeReq)
     if err != nil {
         log.Fatalf("Error calling SayBye RPC: %v", err)
     }
