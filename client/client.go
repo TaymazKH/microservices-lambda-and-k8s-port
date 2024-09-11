@@ -68,27 +68,18 @@ func sayBye(byeRequest *pb.ByeRequest) (*pb.ByeResponse, error) {
     return (*msg).(*pb.ByeResponse), nil
 }
 
-// marshalRequest marshals a proto message object into a byte array.
-func marshalRequest(msg proto.Message) ([]byte, error) {
-    binReq, err := proto.Marshal(msg)
-    if err != nil {
-        return nil, fmt.Errorf("failed to marshal request: %v", err)
-    }
-    return binReq, nil
-}
-
 // sendRequest sends an HTTP POST request with the given byte array and returns the response body as a byte array.
 func sendRequest(addr, path string, binReq []byte, timeout int) ([]byte, error) {
     req, err := http.NewRequestWithContext(context.Background(), "POST", addr+path, bytes.NewBuffer(binReq))
     if err != nil {
-        return nil, fmt.Errorf("failed to create HTTP request: %v", err)
+        return nil, fmt.Errorf("failed to create HTTP request: %w", err)
     }
     req.Header.Set("Content-Type", "application/octet-stream")
 
     client := &http.Client{Timeout: time.Duration(timeout) * time.Second}
     resp, err := client.Do(req)
     if err != nil {
-        return nil, fmt.Errorf("failed to send HTTP request: %v", err)
+        return nil, fmt.Errorf("failed to send HTTP request: %w", err)
     }
     defer resp.Body.Close()
 
@@ -98,10 +89,19 @@ func sendRequest(addr, path string, binReq []byte, timeout int) ([]byte, error) 
 
     respBody, err := io.ReadAll(resp.Body)
     if err != nil {
-        return nil, fmt.Errorf("failed to read response body: %v", err)
+        return nil, fmt.Errorf("failed to read response body: %w", err)
     }
 
     return respBody, nil
+}
+
+// marshalRequest marshals a proto message object into a byte array.
+func marshalRequest(msg proto.Message) ([]byte, error) {
+    binReq, err := proto.Marshal(msg)
+    if err != nil {
+        return nil, fmt.Errorf("failed to marshal request: %w", err)
+    }
+    return binReq, nil
 }
 
 // unmarshalResponse unmarshalls a byte array into a proto message object.
@@ -132,7 +132,7 @@ func main() {
 
     helloResp, err := sayHello(helloReq)
     if err != nil {
-        log.Fatalf("Error calling SayHello RPC: %v", err)
+        log.Fatalf("Error calling SayHello RPC: %w", err)
     }
 
     log.Printf("Greeting: %s", helloResp.GetText())
@@ -143,7 +143,7 @@ func main() {
 
     byeResp, err := sayBye(byeReq)
     if err != nil {
-        log.Fatalf("Error calling SayBye RPC: %v", err)
+        log.Fatalf("Error calling SayBye RPC: %w", err)
     }
 
     log.Printf("Farewell: %s", byeResp.GetText())
