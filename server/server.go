@@ -12,6 +12,12 @@ import (
     pb "main/genproto"
 )
 
+const (
+    greeterService = "greeter"
+    sayHelloRPC    = "say-hello"
+    sayByeRPC      = "say-bye"
+)
+
 // RequestContext represents the nested context of the request
 type RequestContext struct {
     HTTP struct {
@@ -61,9 +67,9 @@ func handleSayBye(byeRequest *pb.ByeRequest) (*pb.ByeResponse, error) {
 // handleRequest chooses the correct handler function to call
 func handleRequest(msg proto.Message, reqData *RequestData) (proto.Message, error) {
     switch reqData.RequestContext.HTTP.Path {
-    case "/greeter/say-hello":
+    case fmt.Sprintf("/%s/%s", greeterService, sayHelloRPC):
         return handleSayHello(msg.(*pb.HelloRequest))
-    case "/greeter/say-bye":
+    case fmt.Sprintf("/%s/%s", greeterService, sayByeRPC):
         return handleSayBye(msg.(*pb.ByeRequest))
     default:
         return nil, fmt.Errorf("unknown path: %s", reqData.RequestContext.HTTP.Path)
@@ -90,9 +96,9 @@ func decodeRequest(request string) (*proto.Message, *RequestData, error) {
 
     var msg proto.Message
     switch reqData.RequestContext.HTTP.Path {
-    case "/greeter/say-hello":
+    case fmt.Sprintf("/%s/%s", greeterService, sayHelloRPC):
         msg = &pb.HelloRequest{}
-    case "/greeter/say-bye":
+    case fmt.Sprintf("/%s/%s", greeterService, sayByeRPC):
         msg = &pb.ByeRequest{}
     default:
         return nil, nil, fmt.Errorf("unknown path: %s", reqData.RequestContext.HTTP.Path)
