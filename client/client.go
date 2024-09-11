@@ -132,7 +132,7 @@ func main() {
 
     helloResp, err := sayHello(helloReq)
     if err != nil {
-        log.Fatalf("Error calling SayHello RPC: %w", err)
+        log.Fatalf("Error calling SayHello RPC: %v", err)
     }
 
     log.Printf("Greeting: %s", helloResp.GetText())
@@ -143,7 +143,7 @@ func main() {
 
     byeResp, err := sayBye(byeReq)
     if err != nil {
-        log.Fatalf("Error calling SayBye RPC: %w", err)
+        log.Fatalf("Error calling SayBye RPC: %v", err)
     }
 
     log.Printf("Farewell: %s", byeResp.GetText())
