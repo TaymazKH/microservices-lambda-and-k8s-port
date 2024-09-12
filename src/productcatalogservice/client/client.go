@@ -18,7 +18,7 @@ import (
 
 var (
     addr    = flag.String("addr", "localhost:50051", "the address to connect to")
-    timeout = flag.Int("timeout", 5, "Timeout in seconds")
+    timeout = flag.Int("timeout", 10, "Timeout in seconds")
 )
 
 const (
@@ -139,11 +139,11 @@ func unmarshalResponse(respBody []byte, header *http.Header, path string) (*prot
         var msg proto.Message
         switch path {
         case fmt.Sprintf("/%s/%s", productCatalogService, listProductsRPC):
-            msg = &pb.Empty{}
+            msg = &pb.ListProductsResponse{}
         case fmt.Sprintf("/%s/%s", productCatalogService, getProductRPC):
-            msg = &pb.GetProductRequest{}
+            msg = &pb.Product{}
         default:
-            msg = &pb.SearchProductsRequest{}
+            msg = &pb.SearchProductsResponse{}
         }
 
         if err := proto.Unmarshal(respBody, msg); err != nil {

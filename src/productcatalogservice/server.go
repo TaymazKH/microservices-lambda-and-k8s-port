@@ -1,17 +1,3 @@
-// Copyright 2018 Google LLC
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 package main
 
 import (
@@ -20,16 +6,17 @@ import (
     "encoding/json"
     "flag"
     "fmt"
-    "google.golang.org/grpc/codes"
-    "google.golang.org/grpc/status"
     "os"
-    "os/signal"
     "strconv"
     "sync"
-    "syscall"
     "time"
 
+    //"os/signal"
+    //"syscall"
+
     "github.com/sirupsen/logrus"
+    "google.golang.org/grpc/codes"
+    "google.golang.org/grpc/status"
     "google.golang.org/protobuf/proto"
     pb "main/genproto"
 )
@@ -61,7 +48,7 @@ func init() {
         },
         TimestampFormat: time.RFC3339Nano,
     }
-    log.Out = os.Stdout
+    log.Out = os.Stderr
     catalogMutex = &sync.Mutex{}
 }
 
@@ -194,21 +181,22 @@ func main() {
         extraLatency = time.Duration(0)
     }
 
-    sigs := make(chan os.Signal, 1)
-    signal.Notify(sigs, syscall.SIGUSR1, syscall.SIGUSR2)
-    go func() {
-        for {
-            sig := <-sigs
-            log.Printf("Received signal: %s", sig)
-            if sig == syscall.SIGUSR1 {
-                reloadCatalog = true
-                log.Infof("Enable catalog reloading")
-            } else {
-                reloadCatalog = false
-                log.Infof("Disable catalog reloading")
-            }
-        }
-    }()
+    reloadCatalog = false // disabled reload signaling. todo: perhaps debug and enable later?
+    //sigs := make(chan os.Signal, 1)
+    //signal.Notify(sigs, syscall.SIGUSR1, syscall.SIGUSR2)
+    //go func() {
+    //    for {
+    //        sig := <-sigs
+    //        log.Printf("Received signal: %s", sig)
+    //        if sig == syscall.SIGUSR1 {
+    //            reloadCatalog = true
+    //            log.Infof("Enable catalog reloading")
+    //        } else {
+    //            reloadCatalog = false
+    //            log.Infof("Disable catalog reloading")
+    //        }
+    //    }
+    //}()
 
     reader := bufio.NewReader(os.Stdin)
     request, err := reader.ReadString('\n')
@@ -231,5 +219,5 @@ func main() {
 
     fmt.Println(response)
 
-    select {}
+    //select {}
 }
