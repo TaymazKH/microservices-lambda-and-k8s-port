@@ -5,9 +5,11 @@ import (
     "context"
     "flag"
     "fmt"
+    "google.golang.org/grpc/codes"
+    "google.golang.org/grpc/status"
     "io"
-    "log"
     "net/http"
+    "strconv"
     "time"
 
     "google.golang.org/protobuf/proto"
@@ -20,69 +22,90 @@ var (
     timeout    = flag.Int("timeout", 5, "Timeout in seconds")
 )
 
-func marshalRequest(adRequest *pb.AdRequest) ([]byte, error) {
-    return proto.Marshal(adRequest)
+const (
+    adService = "ad-service"
+    getAdsRPC = "get-ads"
+)
+
+func GetAds(adRequest *pb.AdRequest) (*pb.AdResponse, error) {
+    binReq, err := marshalRequest(adRequest)
+    if err != nil {
+        return nil, err
+    }
+
+    path := fmt.Sprintf("/%s/%s", adService, getAdsRPC)
+    respBody, header, err := sendRequest(*addr, path, binReq, *timeout)
+    if err != nil {
+        return nil, err
+    }
+
+    msg, err := unmarshalResponse(respBody, header, path)
+    if err != nil {
+        return nil, err
+    }
+
+    return (*msg).(*pb.AdResponse), nil
 }
 
-func sendRequest(addr string, binReq []byte, timeout int) ([]byte, error) {
-    req, err := http.NewRequestWithContext(context.Background(), "POST", addr, bytes.NewBuffer(binReq))
+// marshalRequest marshals a proto message object into a byte array.
+func marshalRequest(msg proto.Message) ([]byte, error) {
+    binReq, err := proto.Marshal(msg)
     if err != nil {
-        return nil, fmt.Errorf("failed to create HTTP request: %v", err)
+        return nil, fmt.Errorf("failed to marshal request: %w", err)
+    }
+    return binReq, nil
+}
+
+// sendRequest sends an HTTP POST request with the given byte array and returns the response body as a byte array.
+func sendRequest(addr, path string, binReq []byte, timeout int) ([]byte, *http.Header, error) {
+    req, err := http.NewRequestWithContext(context.Background(), "POST", addr+path, bytes.NewBuffer(binReq))
+    if err != nil {
+        return nil, nil, fmt.Errorf("failed to create HTTP request: %w", err)
     }
     req.Header.Set("Content-Type", "application/octet-stream")
 
     client := &http.Client{Timeout: time.Duration(timeout) * time.Second}
     resp, err := client.Do(req)
     if err != nil {
-        return nil, fmt.Errorf("failed to send HTTP request: %v", err)
+        return nil, nil, fmt.Errorf("failed to send HTTP request: %w", err)
     }
     defer resp.Body.Close()
 
     if resp.StatusCode != http.StatusOK {
-        return nil, fmt.Errorf("received non-OK response: %s", resp.Status)
+        return nil, nil, fmt.Errorf("received non-OK response: %s", resp.Status)
     }
 
     respBody, err := io.ReadAll(resp.Body)
     if err != nil {
-        return nil, fmt.Errorf("failed to read response body: %v", err)
+        return nil, nil, fmt.Errorf("failed to read response body: %w", err)
     }
 
-    return respBody, nil
+    return respBody, &resp.Header, nil
 }
 
-func unmarshalResponse(respBody []byte) (*pb.AdResponse, error) {
-    var adResponse pb.AdResponse
-    if err := proto.Unmarshal(respBody, &adResponse); err != nil {
-        return nil, err
-    }
-    return &adResponse, nil
-}
-
-func main() {
-    flag.Parse()
-
-    adRequest := &pb.AdRequest{
-        ContextKeys: []string{*contextKey},
+// unmarshalResponse unmarshalls a byte array into a proto message object.
+func unmarshalResponse(respBody []byte, header *http.Header, path string) (*proto.Message, error) {
+    if header.Get("Grpc-Code") == "" {
+        return nil, fmt.Errorf("missing Grpc-Code header")
     }
 
-    binReq, err := marshalRequest(adRequest)
+    grpcCode, err := strconv.Atoi(header.Get("Grpc-Code"))
     if err != nil {
-        log.Fatalf("Error marshaling request: %v", err)
+        return nil, fmt.Errorf("failed to parse Grpc-Code header: %w", err)
     }
 
-    respBody, err := sendRequest(*addr, binReq, *timeout)
-    if err != nil {
-        log.Fatalf("Error sending request: %v", err)
-    }
+    if grpcCode := codes.Code(grpcCode); grpcCode == codes.OK {
+        var msg proto.Message
+        switch path {
+        default:
+            msg = &pb.AdResponse{}
+        }
 
-    adResponse, err := unmarshalResponse(respBody)
-    if err != nil {
-        log.Fatalf("Error unmarshaling response: %v", err)
+        if err := proto.Unmarshal(respBody, msg); err != nil {
+            return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+        }
+        return &msg, nil
+    } else {
+        return nil, status.Error(grpcCode, string(respBody))
     }
-
-    for _, ad := range adResponse.GetAds() {
-        log.Printf("Ad: %s", ad.GetText())
-    }
-
-    fmt.Println("Ad retrieval complete.")
 }
