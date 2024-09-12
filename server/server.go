@@ -7,7 +7,10 @@ import (
     "fmt"
     "log"
     "os"
+    "strconv"
 
+    "google.golang.org/grpc/codes"
+    "google.golang.org/grpc/status"
     "google.golang.org/protobuf/proto"
     pb "main/genproto"
 )
@@ -65,14 +68,12 @@ func handleSayBye(byeRequest *pb.ByeRequest) (*pb.ByeResponse, error) {
 }
 
 // handleRequest chooses the correct handler function to call
-func handleRequest(msg proto.Message, reqData *RequestData) (proto.Message, error) {
+func handleRequest(msg *proto.Message, reqData *RequestData) (proto.Message, error) {
     switch reqData.RequestContext.HTTP.Path {
     case fmt.Sprintf("/%s/%s", greeterService, sayHelloRPC):
-        return handleSayHello(msg.(*pb.HelloRequest))
-    case fmt.Sprintf("/%s/%s", greeterService, sayByeRPC):
-        return handleSayBye(msg.(*pb.ByeRequest))
+        return handleSayHello((*msg).(*pb.HelloRequest))
     default:
-        return nil, fmt.Errorf("unknown path: %s", reqData.RequestContext.HTTP.Path)
+        return handleSayBye((*msg).(*pb.ByeRequest))
     }
 }
 
@@ -112,19 +113,36 @@ func decodeRequest(request string) (*proto.Message, *RequestData, error) {
 }
 
 // encodeResponse encodes the protobuf response into the outgoing JSON response
-func encodeResponse(msg proto.Message) (string, error) {
-    binRespBody, err := proto.Marshal(msg)
-    if err != nil {
-        return "", fmt.Errorf("failed to marshal response: %w", err)
-    }
+func encodeResponse(msg *proto.Message, rpcError error) (string, error) {
+    var respData ResponseData
 
-    encodedRespBody := base64.StdEncoding.EncodeToString(binRespBody) // Base64 encoding is optional.
+    if rpcError == nil {
+        binRespBody, err := proto.Marshal(*msg)
+        if err != nil {
+            return "", fmt.Errorf("failed to marshal response: %w", err)
+        }
 
-    respData := ResponseData{
-        StatusCode:      200,
-        Headers:         map[string]string{"Content-Type": "application/octet-stream"},
-        Body:            encodedRespBody, // Use `binRespBody` if not encoded.
-        IsBase64Encoded: true,
+        encodedRespBody := base64.StdEncoding.EncodeToString(binRespBody) // Base64 encoding is optional.
+
+        respData = ResponseData{
+            StatusCode: 200,
+            Headers: map[string]string{
+                "Content-Type": "application/octet-stream",
+                "Grpc-Code":    strconv.Itoa(int(codes.OK))},
+            Body:            encodedRespBody, // Use `binRespBody` if not encoded.
+            IsBase64Encoded: true,
+        }
+    } else {
+        stat := status.Convert(rpcError)
+
+        respData = ResponseData{
+            StatusCode: 200,
+            Headers: map[string]string{
+                "Content-Type": "text/plain",
+                "Grpc-Code":    strconv.Itoa(int(stat.Code()))},
+            Body:            stat.Message(),
+            IsBase64Encoded: false,
+        }
     }
 
     jsonResponse, err := json.Marshal(respData)
@@ -143,17 +161,14 @@ func main() {
     }
     request = request[:len(request)-1] // Trim any trailing newline characters
 
-    msg, reqData, err := decodeRequest(request)
+    reqMsg, reqData, err := decodeRequest(request)
     if err != nil {
         log.Fatalf("Error decoding request: %v", err)
     }
 
-    helloResp, err := handleRequest(*msg, reqData)
-    if err != nil {
-        log.Fatalf("Handler error: %v", err)
-    }
+    respMsg, err := handleRequest(reqMsg, reqData)
 
-    response, err := encodeResponse(helloResp)
+    response, err := encodeResponse(&respMsg, err)
     if err != nil {
         log.Fatalf("Error encoding response: %v", err)
     }

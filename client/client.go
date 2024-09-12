@@ -8,8 +8,11 @@ import (
     "io"
     "log"
     "net/http"
+    "strconv"
     "time"
 
+    "google.golang.org/grpc/codes"
+    "google.golang.org/grpc/status"
     "google.golang.org/protobuf/proto"
     pb "main/genproto"
 )
@@ -34,12 +37,12 @@ func SayHello(helloRequest *pb.HelloRequest) (*pb.HelloResponse, error) {
     }
 
     path := fmt.Sprintf("/%s/%s", greeterService, sayHelloRPC)
-    respBody, err := sendRequest(*addr, path, binReq, *timeout)
+    respBody, header, err := sendRequest(*addr, path, binReq, *timeout)
     if err != nil {
         return nil, err
     }
 
-    msg, err := unmarshalResponse(respBody, path)
+    msg, err := unmarshalResponse(respBody, header, path)
     if err != nil {
         return nil, err
     }
@@ -55,12 +58,12 @@ func SayBye(byeRequest *pb.ByeRequest) (*pb.ByeResponse, error) {
     }
 
     path := fmt.Sprintf("/%s/%s", greeterService, sayByeRPC)
-    respBody, err := sendRequest(*addr, path, binReq, *timeout)
+    respBody, header, err := sendRequest(*addr, path, binReq, *timeout)
     if err != nil {
         return nil, err
     }
 
-    msg, err := unmarshalResponse(respBody, path)
+    msg, err := unmarshalResponse(respBody, header, path)
     if err != nil {
         return nil, err
     }
@@ -69,30 +72,30 @@ func SayBye(byeRequest *pb.ByeRequest) (*pb.ByeResponse, error) {
 }
 
 // sendRequest sends an HTTP POST request with the given byte array and returns the response body as a byte array.
-func sendRequest(addr, path string, binReq []byte, timeout int) ([]byte, error) {
+func sendRequest(addr, path string, binReq []byte, timeout int) ([]byte, *http.Header, error) {
     req, err := http.NewRequestWithContext(context.Background(), "POST", addr+path, bytes.NewBuffer(binReq))
     if err != nil {
-        return nil, fmt.Errorf("failed to create HTTP request: %w", err)
+        return nil, nil, fmt.Errorf("failed to create HTTP request: %w", err)
     }
     req.Header.Set("Content-Type", "application/octet-stream")
 
     client := &http.Client{Timeout: time.Duration(timeout) * time.Second}
     resp, err := client.Do(req)
     if err != nil {
-        return nil, fmt.Errorf("failed to send HTTP request: %w", err)
+        return nil, nil, fmt.Errorf("failed to send HTTP request: %w", err)
     }
     defer resp.Body.Close()
 
     if resp.StatusCode != http.StatusOK {
-        return nil, fmt.Errorf("received non-OK response: %s", resp.Status)
+        return nil, nil, fmt.Errorf("received non-OK response: %s", resp.Status)
     }
 
     respBody, err := io.ReadAll(resp.Body)
     if err != nil {
-        return nil, fmt.Errorf("failed to read response body: %w", err)
+        return nil, nil, fmt.Errorf("failed to read response body: %w", err)
     }
 
-    return respBody, nil
+    return respBody, &resp.Header, nil
 }
 
 // marshalRequest marshals a proto message object into a byte array.
@@ -105,22 +108,32 @@ func marshalRequest(msg proto.Message) ([]byte, error) {
 }
 
 // unmarshalResponse unmarshalls a byte array into a proto message object.
-func unmarshalResponse(respBody []byte, path string) (*proto.Message, error) {
-    var msg proto.Message
-    switch path {
-    case fmt.Sprintf("/%s/%s", greeterService, sayHelloRPC):
-        msg = &pb.HelloResponse{}
-    case fmt.Sprintf("/%s/%s", greeterService, sayByeRPC):
-        msg = &pb.ByeResponse{}
-    default:
-        return nil, fmt.Errorf("unknown path: %s", path)
+func unmarshalResponse(respBody []byte, header *http.Header, path string) (*proto.Message, error) {
+    if header.Get("Grpc-Code") == "" {
+        return nil, fmt.Errorf("missing Grpc-Code header")
     }
 
-    if err := proto.Unmarshal(respBody, msg); err != nil {
-        return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+    grpcCode, err := strconv.Atoi(header.Get("Grpc-Code"))
+    if err != nil {
+        return nil, fmt.Errorf("failed to parse Grpc-Code header: %w", err)
     }
 
-    return &msg, nil
+    if grpcCode := codes.Code(grpcCode); grpcCode == codes.OK {
+        var msg proto.Message
+        switch path {
+        case fmt.Sprintf("/%s/%s", greeterService, sayHelloRPC):
+            msg = &pb.HelloResponse{}
+        default:
+            msg = &pb.ByeResponse{}
+        }
+
+        if err := proto.Unmarshal(respBody, msg); err != nil {
+            return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+        }
+        return &msg, nil
+    } else {
+        return nil, status.Error(grpcCode, string(respBody))
+    }
 }
 
 func main() {
