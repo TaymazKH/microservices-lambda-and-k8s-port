@@ -1,4 +1,4 @@
-package main
+package client
 
 import (
     "bytes"
@@ -17,7 +17,7 @@ import (
 )
 
 var (
-    addr       = flag.String("addr", "http://localhost:8080", "The address to connect to")
+    addr       = flag.String("addr", "localhost:50051", "The address to connect to")
     contextKey = flag.String("contextKey", "camera", "Context key for ad request")
     timeout    = flag.Int("timeout", 5, "Timeout in seconds")
 )
