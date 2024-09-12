@@ -3,4 +3,4 @@
 GOOS=linux
 GOARCH=amd64
 go build -o service .
-zip -r deployment.zip bootstrap handler.sh service  # todo: deploy with SAM
+zip -r deployment.zip bootstrap handler.sh products.json service

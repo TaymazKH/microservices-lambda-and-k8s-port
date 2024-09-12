@@ -20,8 +20,11 @@ import (
     "encoding/json"
     "flag"
     "fmt"
+    "google.golang.org/grpc/codes"
+    "google.golang.org/grpc/status"
     "os"
     "os/signal"
+    "strconv"
     "sync"
     "syscall"
     "time"
@@ -39,6 +42,13 @@ var (
     svc = &productCatalog{}
 
     reloadCatalog bool
+)
+
+const (
+    productCatalogService = "product-catalog-service"
+    listProductsRPC       = "list-products"
+    getProductRPC         = "get-product"
+    searchProductsRPC     = "search-products"
 )
 
 func init() {
@@ -80,16 +90,14 @@ type ResponseData struct {
 }
 
 // handleRequest chooses the correct handler function to call
-func handleRequest(msg proto.Message, reqData *RequestData) (proto.Message, error) {
+func handleRequest(msg *proto.Message, reqData *RequestData) (proto.Message, error) {
     switch reqData.RequestContext.HTTP.Path {
-    case "/product-catalog-service/list-products":
-        return svc.ListProducts(msg.(*pb.Empty))
-    case "/product-catalog-service/get-product":
-        return svc.GetProduct(msg.(*pb.GetProductRequest))
-    case "/product-catalog-service/search-products":
-        return svc.SearchProducts(msg.(*pb.SearchProductsRequest))
+    case fmt.Sprintf("/%s/%s", productCatalogService, listProductsRPC):
+        return svc.ListProducts((*msg).(*pb.Empty))
+    case fmt.Sprintf("/%s/%s", productCatalogService, getProductRPC):
+        return svc.GetProduct((*msg).(*pb.GetProductRequest))
     default:
-        return nil, fmt.Errorf("unknown path: %s", reqData.RequestContext.HTTP.Path)
+        return svc.SearchProducts((*msg).(*pb.SearchProductsRequest))
     }
 }
 
@@ -113,11 +121,11 @@ func decodeRequest(request string) (*proto.Message, *RequestData, error) {
 
     var msg proto.Message
     switch reqData.RequestContext.HTTP.Path {
-    case "/product-catalog-service/list-products":
+    case fmt.Sprintf("/%s/%s", productCatalogService, listProductsRPC):
         msg = &pb.Empty{}
-    case "/product-catalog-service/get-product":
+    case fmt.Sprintf("/%s/%s", productCatalogService, getProductRPC):
         msg = &pb.GetProductRequest{}
-    case "/product-catalog-service/search-products":
+    case fmt.Sprintf("/%s/%s", productCatalogService, searchProductsRPC):
         msg = &pb.SearchProductsRequest{}
     default:
         return nil, nil, fmt.Errorf("unknown path: %s", reqData.RequestContext.HTTP.Path)
@@ -131,19 +139,36 @@ func decodeRequest(request string) (*proto.Message, *RequestData, error) {
 }
 
 // encodeResponse encodes the protobuf response into the outgoing JSON response
-func encodeResponse(msg proto.Message) (string, error) {
-    binRespBody, err := proto.Marshal(msg)
-    if err != nil {
-        return "", fmt.Errorf("failed to marshal response: %w", err)
-    }
+func encodeResponse(msg *proto.Message, rpcError error) (string, error) {
+    var respData ResponseData
 
-    encodedRespBody := base64.StdEncoding.EncodeToString(binRespBody) // Base64 encoding is optional.
+    if rpcError == nil {
+        binRespBody, err := proto.Marshal(*msg)
+        if err != nil {
+            return "", fmt.Errorf("failed to marshal response: %w", err)
+        }
 
-    respData := ResponseData{
-        StatusCode:      200,
-        Headers:         map[string]string{"Content-Type": "application/octet-stream"},
-        Body:            encodedRespBody, // Use `binRespBody` if not encoded.
-        IsBase64Encoded: true,
+        encodedRespBody := base64.StdEncoding.EncodeToString(binRespBody) // Base64 encoding is optional.
+
+        respData = ResponseData{
+            StatusCode: 200,
+            Headers: map[string]string{
+                "Content-Type": "application/octet-stream",
+                "Grpc-Code":    strconv.Itoa(int(codes.OK))},
+            Body:            encodedRespBody, // Use `binRespBody` if not encoded.
+            IsBase64Encoded: true,
+        }
+    } else {
+        stat := status.Convert(rpcError)
+
+        respData = ResponseData{
+            StatusCode: 200,
+            Headers: map[string]string{
+                "Content-Type": "text/plain",
+                "Grpc-Code":    strconv.Itoa(int(stat.Code()))},
+            Body:            stat.Message(),
+            IsBase64Encoded: false,
+        }
     }
 
     jsonResponse, err := json.Marshal(respData)
@@ -192,17 +217,14 @@ func main() {
     }
     request = request[:len(request)-1]
 
-    msg, reqData, err := decodeRequest(request)
+    reqMsg, reqData, err := decodeRequest(request)
     if err != nil {
         log.Fatalf("Error decoding request: %v", err)
     }
 
-    helloResp, err := handleRequest(*msg, reqData)
-    if err != nil {
-        log.Fatalf("Handler error: %v", err)
-    }
+    respMsg, err := handleRequest(reqMsg, reqData)
 
-    response, err := encodeResponse(helloResp)
+    response, err := encodeResponse(&respMsg, err)
     if err != nil {
         log.Fatalf("Error encoding response: %v", err)
     }
