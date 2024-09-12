@@ -1,17 +1,3 @@
-// Copyright 2018 Google LLC
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 package main
 
 import (
@@ -19,11 +5,20 @@ import (
     "encoding/base64"
     "encoding/json"
     "fmt"
-    "google.golang.org/protobuf/proto"
     "log"
     "os"
+    "strconv"
 
+    "google.golang.org/grpc/codes"
+    "google.golang.org/grpc/status"
+    "google.golang.org/protobuf/proto"
     pb "main/genproto"
+)
+
+const (
+    shippingService = "shipping-service"
+    getQuoteRPC     = "get-quote"
+    shipOrderRPC    = "ship-order"
 )
 
 // RequestContext represents the nested context of the request
@@ -83,14 +78,12 @@ func handleShipOrder(in *pb.ShipOrderRequest) (*pb.ShipOrderResponse, error) {
 }
 
 // handleRequest chooses the correct handler function to call
-func handleRequest(msg proto.Message, reqData *RequestData) (proto.Message, error) {
+func handleRequest(msg *proto.Message, reqData *RequestData) (proto.Message, error) {
     switch reqData.RequestContext.HTTP.Path {
-    case "/shipping-service/get-quote":
-        return handleGetQuote(msg.(*pb.GetQuoteRequest))
-    case "/shipping-service/ship-order":
-        return handleShipOrder(msg.(*pb.ShipOrderRequest))
+    case fmt.Sprintf("/%s/%s", shippingService, getQuoteRPC):
+        return handleGetQuote((*msg).(*pb.GetQuoteRequest))
     default:
-        return nil, fmt.Errorf("unknown path: %s", reqData.RequestContext.HTTP.Path)
+        return handleShipOrder((*msg).(*pb.ShipOrderRequest))
     }
 }
 
@@ -114,9 +107,9 @@ func decodeRequest(request string) (*proto.Message, *RequestData, error) {
 
     var msg proto.Message
     switch reqData.RequestContext.HTTP.Path {
-    case "/shipping-service/get-quote":
+    case fmt.Sprintf("/%s/%s", shippingService, getQuoteRPC):
         msg = &pb.GetQuoteRequest{}
-    case "/shipping-service/ship-order":
+    case fmt.Sprintf("/%s/%s", shippingService, shipOrderRPC):
         msg = &pb.ShipOrderRequest{}
     default:
         return nil, nil, fmt.Errorf("unknown path: %s", reqData.RequestContext.HTTP.Path)
@@ -130,19 +123,36 @@ func decodeRequest(request string) (*proto.Message, *RequestData, error) {
 }
 
 // encodeResponse encodes the protobuf response into the outgoing JSON response
-func encodeResponse(msg proto.Message) (string, error) {
-    binRespBody, err := proto.Marshal(msg)
-    if err != nil {
-        return "", fmt.Errorf("failed to marshal response: %w", err)
-    }
+func encodeResponse(msg *proto.Message, rpcError error) (string, error) {
+    var respData ResponseData
 
-    encodedRespBody := base64.StdEncoding.EncodeToString(binRespBody) // Base64 encoding is optional.
+    if rpcError == nil {
+        binRespBody, err := proto.Marshal(*msg)
+        if err != nil {
+            return "", fmt.Errorf("failed to marshal response: %w", err)
+        }
 
-    respData := ResponseData{
-        StatusCode:      200,
-        Headers:         map[string]string{"Content-Type": "application/octet-stream"},
-        Body:            encodedRespBody, // Use `binRespBody` if not encoded.
-        IsBase64Encoded: true,
+        encodedRespBody := base64.StdEncoding.EncodeToString(binRespBody) // Base64 encoding is optional.
+
+        respData = ResponseData{
+            StatusCode: 200,
+            Headers: map[string]string{
+                "Content-Type": "application/octet-stream",
+                "Grpc-Code":    strconv.Itoa(int(codes.OK))},
+            Body:            encodedRespBody, // Use `binRespBody` if not encoded.
+            IsBase64Encoded: true,
+        }
+    } else {
+        stat := status.Convert(rpcError)
+
+        respData = ResponseData{
+            StatusCode: 200,
+            Headers: map[string]string{
+                "Content-Type": "text/plain",
+                "Grpc-Code":    strconv.Itoa(int(stat.Code()))},
+            Body:            stat.Message(),
+            IsBase64Encoded: false,
+        }
     }
 
     jsonResponse, err := json.Marshal(respData)
@@ -161,17 +171,14 @@ func main() {
     }
     request = request[:len(request)-1] // Trim any trailing newline characters
 
-    msg, reqData, err := decodeRequest(request)
+    reqMsg, reqData, err := decodeRequest(request)
     if err != nil {
         log.Fatalf("Error decoding request: %v", err)
     }
 
-    helloResp, err := handleRequest(*msg, reqData)
-    if err != nil {
-        log.Fatalf("Handler error: %v", err)
-    }
+    respMsg, err := handleRequest(reqMsg, reqData)
 
-    response, err := encodeResponse(helloResp)
+    response, err := encodeResponse(&respMsg, err)
     if err != nil {
         log.Fatalf("Error encoding response: %v", err)
     }
