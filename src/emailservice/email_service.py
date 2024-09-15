@@ -16,6 +16,10 @@ env = Environment(
 template = env.get_template('confirmation.html')
 
 
+# ATTENTION: The main service logic is not implemented in the main benchmark.
+# Therefore, we will use the dummy service.
+
+
 class EmailService(demo_pb2_grpc.EmailServiceServicer):
     def __init__(self):
         raise Exception('cloud mail client not implemented')

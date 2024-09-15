@@ -4,6 +4,10 @@ from logger import getJSONLogger
 logger = getJSONLogger('emailservice-server')
 
 
+# ATTENTION: The main service logic is not implemented in the main benchmark.
+# Therefore, we will use the dummy service.
+
+
 class DummyEmailService:
     @staticmethod
     def SendOrderConfirmation(request, context):
