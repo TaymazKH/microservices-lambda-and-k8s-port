@@ -20,10 +20,12 @@
 *~
 bin/
 build/
+deployment.zip
 Dockerfile.pip
 genproto/
 node_modules/
 obj/
 pkg/
 release/wi-kubernetes-manifests.yaml
+site_packages
 vendor/

@@ -1,25 +1,25 @@
-import grpc
+import unittest
 
-from genproto import demo_pb2
-from genproto import demo_pb2_grpc
+from client import send_order_confirmation
+from common import GrpcError
+from genproto import demo_pb2 as pb
 from logger import getJSONLogger
 
 logger = getJSONLogger('emailservice-client')
 
 
-def send_confirmation_email(email, order):
-    channel = grpc.insecure_channel('[::]:8080')
-    stub = demo_pb2_grpc.EmailServiceStub(channel)
-    try:
-        response = stub.SendOrderConfirmation(demo_pb2.SendOrderConfirmationRequest(
-            email=email,
-            order=order
-        ))
-        logger.info('Request sent.')
-    except grpc.RpcError as err:
-        logger.error(err.details())
-        logger.error('{}, {}'.format(err.code().name, err.code().value))
+class TestEmailService(unittest.TestCase):
+    def test_send_confirmation_email(self):
+        try:
+            empty, err = send_order_confirmation(
+                send_order_confirmation_request=pb.SendOrderConfirmationRequest(email="example@gmail.com", order=None),
+                addr="",
+                timeout=5
+            )
+        except GrpcError as err:
+            self.fail(f"RPC call failed with error: {err}")
+        print(f"Test complete")
 
 
-if __name__ == '__main__':
-    logger.info('Client for email service.')
+if __name__ == "__main__":
+    unittest.main()

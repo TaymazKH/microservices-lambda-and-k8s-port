@@ -2,8 +2,8 @@ import base64
 
 import grpc
 from google.protobuf import json_format
-from grpc_status import rpc_status
 
+from common import GrpcError
 from dummy_email_service import DummyEmailService as Service
 from genproto import demo_pb2 as pb
 
@@ -63,11 +63,10 @@ def encode_response(msg, rpc_error=None):
             is_base64_encoded=True
         )
     else:
-        status = rpc_status.to_status(rpc_error)
         resp_data = ResponseData(
             status_code=200,
-            headers={"Content-Type": "text/plain", "Grpc-Code": str(status.code)},
-            body=status.message,
+            headers={"Content-Type": "text/plain", "Grpc-Code": str(rpc_error.int_code)},
+            body=rpc_error.message,
             is_base64_encoded=False
         )
 
@@ -80,7 +79,7 @@ def main(event, context):
     try:
         resp_msg = handle_request(req_msg, req_data)
         response = encode_response(resp_msg)
-    except grpc.RpcError as err:
+    except GrpcError as err:
         response = encode_response(None, rpc_error=err)
 
     return response
