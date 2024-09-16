@@ -7,8 +7,8 @@ from common import GrpcError
 from dummy_email_service import DummyEmailService as Service
 from genproto import demo_pb2 as pb
 
-EMAIL_SERVICE = "greeter"
-SEND_ORDER_CONFIRMATION_RPC = "say-hello"
+EMAIL_SERVICE = "email-service"
+SEND_ORDER_CONFIRMATION_RPC = "send-order-confirmation"
 
 
 class RequestContext:
