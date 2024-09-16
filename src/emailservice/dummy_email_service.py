@@ -10,6 +10,6 @@ logger = getJSONLogger('emailservice-server')
 
 class DummyEmailService:
     @staticmethod
-    def SendOrderConfirmation(request, context):
+    def SendOrderConfirmation(request):
         logger.info('A request to send order confirmation email to {} has been received.'.format(request.email))
         return demo_pb2.Empty()

@@ -4,11 +4,11 @@ import grpc
 from google.protobuf import json_format
 from grpc_status import rpc_status
 
+from dummy_email_service import DummyEmailService as Service
 from genproto import demo_pb2 as pb
 
-GREETER_SERVICE = "greeter"
-SAY_HELLO_RPC = "say-hello"
-SAY_BYE_RPC = "say-bye"
+EMAIL_SERVICE = "greeter"
+SEND_ORDER_CONFIRMATION_RPC = "say-hello"
 
 
 class RequestContext:
@@ -32,21 +32,8 @@ class ResponseData:
         self.is_base64_encoded = is_base64_encoded
 
 
-def handle_say_hello(hello_request):
-    print(f"Received: {hello_request.name}")
-    return pb.HelloResponse(text=f"Hello {hello_request.name}")
-
-
-def handle_say_bye(bye_request):
-    print(f"Received: {bye_request.name}")
-    return pb.ByeResponse(text=f"Bye {bye_request.name}")
-
-
 def handle_request(msg, req_data):
-    if req_data.request_context["http"]["path"] == f"/{GREETER_SERVICE}/{SAY_HELLO_RPC}":
-        return handle_say_hello(msg)
-    else:
-        return handle_say_bye(msg)
+    return Service.SendOrderConfirmation(msg)
 
 
 def decode_request(req_data):
@@ -55,10 +42,8 @@ def decode_request(req_data):
     else:
         bin_req_body = req_data['body'].encode()
 
-    if req_data['requestContext']['http']['path'] == f"/{GREETER_SERVICE}/{SAY_HELLO_RPC}":
-        msg = pb.HelloRequest()
-    elif req_data['requestContext']['http']['path'] == f"/{GREETER_SERVICE}/{SAY_BYE_RPC}":
-        msg = pb.ByeRequest()
+    if req_data['requestContext']['http']['path'] == f"/{EMAIL_SERVICE}/{SEND_ORDER_CONFIRMATION_RPC}":
+        msg = pb.SendOrderConfirmationRequest()
     else:
         raise ValueError(f"Unknown path: {req_data['requestContext']['http']['path']}")
 
