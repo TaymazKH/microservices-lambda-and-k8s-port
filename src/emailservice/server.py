@@ -1,7 +1,6 @@
 import base64
 
 import grpc
-from google.protobuf import json_format
 
 from common import GrpcError
 from dummy_email_service import DummyEmailService as Service
@@ -12,24 +11,32 @@ SEND_ORDER_CONFIRMATION_RPC = "send-order-confirmation"
 
 
 class RequestContext:
-    def __init__(self, method, path):
+    def __init__(self, method, path, **kwargs):
         self.http = {"method": method, "path": path}
 
 
 class RequestData:
-    def __init__(self, body, headers, request_context, is_base64_encoded):
+    def __init__(self, body, headers, requestContext, isBase64Encoded, **kwargs):
         self.body = body
         self.headers = headers
-        self.request_context = request_context
-        self.is_base64_encoded = is_base64_encoded
+        self.requestContext = requestContext
+        self.isBase64Encoded = isBase64Encoded
 
 
 class ResponseData:
-    def __init__(self, status_code, headers, body, is_base64_encoded):
-        self.status_code = status_code
+    def __init__(self, statusCode, headers, body, isBase64Encoded):
+        self.statusCode = statusCode
         self.headers = headers
         self.body = body
-        self.is_base64_encoded = is_base64_encoded
+        self.isBase64Encoded = isBase64Encoded
+
+    def to_dict(self):
+        return {
+            "statusCode": self.statusCode,
+            "headers": self.headers,
+            "body": self.body,
+            "isBase64Encoded": self.isBase64Encoded,
+        }
 
 
 def handle_request(msg, req_data):
@@ -47,7 +54,7 @@ def decode_request(req_data):
     else:
         raise ValueError(f"Unknown path: {req_data['requestContext']['http']['path']}")
 
-    json_format.Parse(bin_req_body.decode(), msg)
+    msg.ParseFromString(bin_req_body)
     return msg, RequestData(**req_data)
 
 
@@ -57,20 +64,20 @@ def encode_response(msg, rpc_error=None):
         encoded_resp_body = base64.b64encode(bin_resp_body).decode()
 
         resp_data = ResponseData(
-            status_code=200,
+            statusCode=200,
             headers={"Content-Type": "application/octet-stream", "Grpc-Code": str(grpc.StatusCode.OK.value[0])},
             body=encoded_resp_body,
-            is_base64_encoded=True
+            isBase64Encoded=True
         )
     else:
         resp_data = ResponseData(
-            status_code=200,
+            statusCode=200,
             headers={"Content-Type": "text/plain", "Grpc-Code": str(rpc_error.int_code)},
             body=rpc_error.message,
-            is_base64_encoded=False
+            isBase64Encoded=False
         )
 
-    return resp_data
+    return resp_data.to_dict()
 
 
 def main(event, context):

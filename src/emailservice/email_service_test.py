@@ -11,7 +11,7 @@ logger = getJSONLogger('emailservice-client')
 class TestEmailService(unittest.TestCase):
     def test_send_confirmation_email(self):
         try:
-            empty, err = send_order_confirmation(
+            empty = send_order_confirmation(
                 send_order_confirmation_request=pb.SendOrderConfirmationRequest(email="example@gmail.com", order=None),
                 addr="",
                 timeout=5
