@@ -6,14 +6,21 @@ from google.protobuf.message import DecodeError
 
 from common import GrpcError
 from genproto import demo_pb2 as pb
+from logger import getJSONLogger
+
+logger = getJSONLogger('recommendationservice-server')
 
 PRODUCT_CATALOG_SERVICE = "product-catalog-service"
 LIST_PRODUCTS_RPC = "list-products"
 GET_PRODUCT_RPC = "get-product"
 SEARCH_PRODUCTS_RPC = "search-products"
 
-addr = os.getenv('PRODUCT_CATALOG_SERVICE_ADDRESS')
-timeout = os.getenv('PRODUCT_CATALOG_SERVICE_TIMEOUT')
+addr = os.getenv('PRODUCT_CATALOG_SERVICE_ADDR')
+if addr is None:
+    raise Exception('PRODUCT_CATALOG_SERVICE_ADDR environment variable not set')
+logger.info("product catalog address: " + addr)
+
+timeout = int(os.getenv('PRODUCT_CATALOG_SERVICE_TIMEOUT', '5'))
 
 
 def list_products(empty):

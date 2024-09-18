@@ -3,8 +3,11 @@ import base64
 import grpc
 
 from common import GrpcError
-from recommendation_service import RecommendationService as Service
 from genproto import demo_pb2 as pb
+from logger import getJSONLogger
+from recommendation_service import RecommendationService as Service
+
+logger = getJSONLogger('recommendationservice-server')
 
 RECOMMENDATION_SERVICE = "recommendation-service"
 LIST_RECOMMENDATIONS_RPC = "list-recommendations"
@@ -81,6 +84,7 @@ def encode_response(msg, rpc_error=None):
 
 
 def main(event, context):
+    logger.info("initializing recommendationservice")
     req_msg, req_data = decode_request(event)
 
     try:
