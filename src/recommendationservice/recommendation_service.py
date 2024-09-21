@@ -4,7 +4,7 @@ import product_catalog_stub
 from genproto import demo_pb2 as pb
 from logger import getJSONLogger
 
-logger = getJSONLogger('recommendationservice-server')
+logger = getJSONLogger('recommendationservice-logic')
 
 
 class RecommendationService:
