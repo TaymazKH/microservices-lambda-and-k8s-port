@@ -1,7 +1,7 @@
 from genproto import demo_pb2
 from logger import getJSONLogger
 
-logger = getJSONLogger('emailservice-server')
+logger = getJSONLogger('emailservice-dummylogic')
 
 
 # ATTENTION: The main service logic is not implemented in the main benchmark.

@@ -6,7 +6,7 @@ from genproto import demo_pb2
 from genproto import demo_pb2_grpc
 from logger import getJSONLogger
 
-logger = getJSONLogger('emailservice-server')
+logger = getJSONLogger('emailservice-logic')
 
 # Loads confirmation email template from file
 env = Environment(
