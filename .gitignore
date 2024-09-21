@@ -27,5 +27,5 @@ node_modules/
 obj/
 pkg/
 release/wi-kubernetes-manifests.yaml
-site_packages
+site_packages/
 vendor/
