@@ -5,6 +5,9 @@ import grpc
 from common import GrpcError
 from dummy_email_service import DummyEmailService as Service
 from genproto import demo_pb2 as pb
+from logger import getJSONLogger
+
+logger = getJSONLogger('emailservice-server')
 
 EMAIL_SERVICE = "email-service"
 SEND_ORDER_CONFIRMATION_RPC = "send-order-confirmation"
@@ -81,6 +84,8 @@ def encode_response(msg, rpc_error=None):
 
 
 def main(event, context):
+    logger.info("Handler started.")
+    logger.info(f"Event data: {event}")
     req_msg, req_data = decode_request(event)
 
     try:
@@ -89,4 +94,6 @@ def main(event, context):
     except GrpcError as err:
         response = encode_response(None, rpc_error=err)
 
+    logger.info(f"Response: {response}")
+    logger.info("Handler finished.")
     return response
