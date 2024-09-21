@@ -84,7 +84,8 @@ def encode_response(msg, rpc_error=None):
 
 
 def main(event, context):
-    logger.info("initializing recommendationservice")
+    logger.info("Handler started.")
+    logger.info(f"Event data: {event}")
     req_msg, req_data = decode_request(event)
 
     try:
@@ -93,4 +94,6 @@ def main(event, context):
     except GrpcError as err:
         response = encode_response(None, rpc_error=err)
 
+    logger.info(f"Response: {response}")
+    logger.info("Handler finished.")
     return response
