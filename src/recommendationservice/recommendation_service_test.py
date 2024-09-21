@@ -5,7 +5,7 @@ from common import GrpcError
 from genproto import demo_pb2 as pb
 from logger import getJSONLogger
 
-logger = getJSONLogger('recommendationservice-server')
+logger = getJSONLogger('recommendationservice-test')
 
 
 class TestRecommendationService(unittest.TestCase):
