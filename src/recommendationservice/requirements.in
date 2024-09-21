@@ -3,4 +3,3 @@ grpcio==1.59.2
 grpcio-status==1.59.2
 python-json-logger==2.0.7
 requests==2.32.2
-rsa==4.9
