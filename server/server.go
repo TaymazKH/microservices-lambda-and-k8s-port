@@ -45,28 +45,6 @@ type ResponseData struct {
     IsBase64Encoded bool              `json:"isBase64Encoded"`
 }
 
-// handleSayHello processes the HelloRequest and returns a HelloResponse
-func handleSayHello(helloRequest *pb.HelloRequest) (*pb.HelloResponse, error) {
-    log.Printf("Received: %v", helloRequest.GetName())
-
-    helloResp := &pb.HelloResponse{
-        Text: "Hello " + helloRequest.GetName(),
-    }
-
-    return helloResp, nil
-}
-
-// handleSayBye processes the ByeRequest and returns a ByeResponse
-func handleSayBye(byeRequest *pb.ByeRequest) (*pb.ByeResponse, error) {
-    log.Printf("Received: %v", byeRequest.GetName())
-
-    byeResp := &pb.ByeResponse{
-        Text: "Bye " + byeRequest.GetName(),
-    }
-
-    return byeResp, nil
-}
-
 // handleRequest chooses the correct handler function to call
 func handleRequest(msg *proto.Message, reqData *RequestData) (proto.Message, error) {
     switch reqData.RequestContext.HTTP.Path {
@@ -153,25 +131,42 @@ func encodeResponse(msg *proto.Message, rpcError error) (string, error) {
     return string(jsonResponse), nil
 }
 
-func main() {
+func runLambda() error {
     reader := bufio.NewReader(os.Stdin)
     request, err := reader.ReadString('\n')
     if err != nil {
-        log.Fatalf("Failed to read from stdin: %v", err)
+        return fmt.Errorf("failed to read from stdin: %w", err)
     }
     request = request[:len(request)-1] // Trim any trailing newline characters
 
     reqMsg, reqData, err := decodeRequest(request)
     if err != nil {
-        log.Fatalf("Error decoding request: %v", err)
+        return fmt.Errorf("error decoding request: %w", err)
     }
 
     respMsg, err := handleRequest(reqMsg, reqData)
 
     response, err := encodeResponse(&respMsg, err)
     if err != nil {
-        log.Fatalf("Error encoding response: %v", err)
+        return fmt.Errorf("error encoding response: %w", err)
     }
 
     fmt.Println(response)
+    return nil
+}
+
+func runHTTPServer() {
+
+}
+
+func main() {
+    if os.Getenv("RUN_LAMBDA") == "1" {
+        log.Println("Running Lambda handler.")
+        if err := runLambda(); err != nil {
+            log.Fatalf("Error running lambda handler: %v", err)
+        }
+    } else {
+        log.Println("Running HTTP server.")
+        runHTTPServer()
+    }
 }
