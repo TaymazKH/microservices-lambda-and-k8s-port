@@ -8,6 +8,10 @@ import (
     pb "main/genproto"
 )
 
+var (
+    name = flag.String("name", "world", "Name to greet")
+)
+
 func main() {
     flag.Parse()
 

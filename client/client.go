@@ -3,7 +3,6 @@ package main
 import (
     "bytes"
     "context"
-    "flag"
     "fmt"
     "io"
     "log"
@@ -21,8 +20,6 @@ import (
 var (
     addr    *string
     timeout *int
-
-    name = flag.String("name", "world", "Name to greet")
 )
 
 const (
