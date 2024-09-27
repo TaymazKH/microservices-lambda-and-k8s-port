@@ -8,6 +8,7 @@ import (
     "io"
     "log"
     "net/http"
+    "os"
     "strconv"
     "time"
 
@@ -18,9 +19,10 @@ import (
 )
 
 var (
-    addr    = flag.String("addr", "localhost:50051", "the address to connect to")
-    name    = flag.String("name", "world", "Name to greet")
-    timeout = flag.Int("timeout", 5, "Timeout in seconds")
+    addr    *string
+    timeout *int
+
+    name = flag.String("name", "world", "Name to greet")
 )
 
 const (
@@ -28,6 +30,27 @@ const (
     sayHelloRPC    = "say-hello"
     sayByeRPC      = "say-bye"
 )
+
+func init() {
+    a, ok := os.LookupEnv("GREETER_SERVICE_ADDR")
+    if !ok {
+        log.Fatal("GREETER_SERVICE_ADDR environment variable not set")
+    }
+    addr = &a
+
+    t, ok := os.LookupEnv("GREETER_SERVICE_TIMEOUT")
+    if !ok {
+        t := 5
+        timeout = &t
+    } else {
+        if t, err := strconv.Atoi(t); err != nil {
+            t = 5
+            timeout = &t
+        } else {
+            timeout = &t
+        }
+    }
+}
 
 // SayHello sends a HelloRequest to server and returns a HelloResponse
 func SayHello(helloRequest *pb.HelloRequest) (*pb.HelloResponse, error) {
@@ -134,32 +157,4 @@ func unmarshalResponse(respBody []byte, header *http.Header, path string) (*prot
     } else {
         return nil, status.Error(grpcCode, string(respBody))
     }
-}
-
-func main() {
-    flag.Parse()
-
-    helloReq := &pb.HelloRequest{
-        Name: *name,
-    }
-
-    helloResp, err := SayHello(helloReq)
-    if err != nil {
-        log.Fatalf("Error calling SayHello RPC: %v", err)
-    }
-
-    log.Printf("Greeting: %s", helloResp.GetText())
-
-    byeReq := &pb.ByeRequest{
-        Name: *name,
-    }
-
-    byeResp, err := SayBye(byeReq)
-    if err != nil {
-        log.Fatalf("Error calling SayBye RPC: %v", err)
-    }
-
-    log.Printf("Farewell: %s", byeResp.GetText())
-
-    fmt.Println(helloResp.GetText(), "-", byeResp.GetText())
 }
