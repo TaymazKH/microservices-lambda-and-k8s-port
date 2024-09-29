@@ -28,27 +28,6 @@ const (
     sayByeRPC      = "say-bye"
 )
 
-func init() {
-    a, ok := os.LookupEnv("GREETER_SERVICE_ADDR")
-    if !ok {
-        log.Fatal("GREETER_SERVICE_ADDR environment variable not set")
-    }
-    addr = &a
-
-    t, ok := os.LookupEnv("GREETER_SERVICE_TIMEOUT")
-    if !ok {
-        t := 5
-        timeout = &t
-    } else {
-        if t, err := strconv.Atoi(t); err != nil {
-            t = 5
-            timeout = &t
-        } else {
-            timeout = &t
-        }
-    }
-}
-
 // SayHello sends a HelloRequest to server and returns a HelloResponse
 func SayHello(helloRequest *pb.HelloRequest, headers *map[string]string) (*pb.HelloResponse, error) {
     binReq, err := marshalRequest(helloRequest)
@@ -89,6 +68,28 @@ func SayBye(byeRequest *pb.ByeRequest, headers *map[string]string) (*pb.ByeRespo
     }
 
     return (*msg).(*pb.ByeResponse), nil
+}
+
+// init loads the addr and timeout variables
+func init() {
+    a, ok := os.LookupEnv("GREETER_SERVICE_ADDR")
+    if !ok {
+        log.Fatal("GREETER_SERVICE_ADDR environment variable not set")
+    }
+    addr = &a
+
+    t, ok := os.LookupEnv("GREETER_SERVICE_TIMEOUT")
+    if !ok {
+        t := 5
+        timeout = &t
+    } else {
+        if t, err := strconv.Atoi(t); err != nil {
+            t = 5
+            timeout = &t
+        } else {
+            timeout = &t
+        }
+    }
 }
 
 // sendRequest sends an HTTP POST request with the given byte array and returns the response body as a byte array.
@@ -135,16 +136,16 @@ func marshalRequest(msg proto.Message) ([]byte, error) {
 
 // unmarshalResponse unmarshalls a byte array into a proto message object.
 func unmarshalResponse(respBody []byte, header *http.Header, path string) (*proto.Message, error) {
-    if header.Get("Grpc-Code") == "" {
-        return nil, fmt.Errorf("missing Grpc-Code header")
+    if header.Get("Grpc-Status") == "" {
+        return nil, fmt.Errorf("missing Grpc-Status header")
     }
 
-    grpcCode, err := strconv.Atoi(header.Get("Grpc-Code"))
+    grpcStatus, err := strconv.Atoi(header.Get("Grpc-Status"))
     if err != nil {
-        return nil, fmt.Errorf("failed to parse Grpc-Code header: %w", err)
+        return nil, fmt.Errorf("failed to parse Grpc-Status header: %w", err)
     }
 
-    if grpcCode := codes.Code(grpcCode); grpcCode == codes.OK {
+    if grpcStatus := codes.Code(grpcStatus); grpcStatus == codes.OK {
         var msg proto.Message
         switch path {
         case fmt.Sprintf("/%s/%s", greeterService, sayHelloRPC):
@@ -158,6 +159,6 @@ func unmarshalResponse(respBody []byte, header *http.Header, path string) (*prot
         }
         return &msg, nil
     } else {
-        return nil, status.Error(grpcCode, string(respBody))
+        return nil, status.Error(grpcStatus, string(respBody))
     }
 }

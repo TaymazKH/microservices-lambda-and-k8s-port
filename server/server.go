@@ -21,6 +21,30 @@ const (
     sayByeRPC      = "say-bye"
 )
 
+// callRPC chooses the correct handler function to call
+func callRPC(msg *proto.Message, reqData *RequestData) (proto.Message, error) {
+    switch reqData.RequestContext.HTTP.Path {
+    case fmt.Sprintf("/%s/%s", greeterService, sayHelloRPC):
+        return handleSayHello((*msg).(*pb.HelloRequest), &reqData.Headers)
+    default:
+        return handleSayBye((*msg).(*pb.ByeRequest), &reqData.Headers)
+    }
+}
+
+// determineMessageType chooses the correct message type to initialize
+func determineMessageType(rpcPath string) (proto.Message, error) {
+    var msg proto.Message
+    switch rpcPath {
+    case fmt.Sprintf("/%s/%s", greeterService, sayHelloRPC):
+        msg = &pb.HelloRequest{}
+    case fmt.Sprintf("/%s/%s", greeterService, sayByeRPC):
+        msg = &pb.ByeRequest{}
+    default:
+        return nil, fmt.Errorf("unknown path: %s", rpcPath)
+    }
+    return msg, nil
+}
+
 // RequestContext represents the nested context of the request
 type RequestContext struct {
     HTTP struct {
@@ -45,16 +69,6 @@ type ResponseData struct {
     IsBase64Encoded bool              `json:"isBase64Encoded"`
 }
 
-// handleRequest chooses the correct handler function to call
-func handleRequest(msg *proto.Message, reqData *RequestData) (proto.Message, error) {
-    switch reqData.RequestContext.HTTP.Path {
-    case fmt.Sprintf("/%s/%s", greeterService, sayHelloRPC):
-        return handleSayHello((*msg).(*pb.HelloRequest), &reqData.Headers)
-    default:
-        return handleSayBye((*msg).(*pb.ByeRequest), &reqData.Headers)
-    }
-}
-
 // decodeRequest decodes the incoming JSON request into a protobuf message
 func decodeRequest(request string) (*proto.Message, *RequestData, error) {
     var reqData RequestData
@@ -73,14 +87,9 @@ func decodeRequest(request string) (*proto.Message, *RequestData, error) {
         binReqBody = []byte(reqData.Body)
     }
 
-    var msg proto.Message
-    switch reqData.RequestContext.HTTP.Path {
-    case fmt.Sprintf("/%s/%s", greeterService, sayHelloRPC):
-        msg = &pb.HelloRequest{}
-    case fmt.Sprintf("/%s/%s", greeterService, sayByeRPC):
-        msg = &pb.ByeRequest{}
-    default:
-        return nil, nil, fmt.Errorf("unknown path: %s", reqData.RequestContext.HTTP.Path)
+    msg, err := determineMessageType(reqData.RequestContext.HTTP.Path)
+    if err != nil {
+        return nil, nil, err
     }
 
     if err := proto.Unmarshal(binReqBody, msg); err != nil {
@@ -106,7 +115,7 @@ func encodeResponse(msg *proto.Message, rpcError error) (string, error) {
             StatusCode: 200,
             Headers: map[string]string{
                 "Content-Type": "application/octet-stream",
-                "Grpc-Code":    strconv.Itoa(int(codes.OK))},
+                "Grpc-Status":  strconv.Itoa(int(codes.OK))},
             Body:            encodedRespBody, // Use `binRespBody` if not encoded.
             IsBase64Encoded: true,
         }
@@ -117,7 +126,7 @@ func encodeResponse(msg *proto.Message, rpcError error) (string, error) {
             StatusCode: 200,
             Headers: map[string]string{
                 "Content-Type": "text/plain",
-                "Grpc-Code":    strconv.Itoa(int(stat.Code()))},
+                "Grpc-Status":  strconv.Itoa(int(stat.Code()))},
             Body:            stat.Message(),
             IsBase64Encoded: false,
         }
@@ -144,7 +153,7 @@ func runLambda() error {
         return fmt.Errorf("error decoding request: %w", err)
     }
 
-    respMsg, err := handleRequest(reqMsg, reqData)
+    respMsg, err := callRPC(reqMsg, reqData)
 
     response, err := encodeResponse(&respMsg, err)
     if err != nil {
