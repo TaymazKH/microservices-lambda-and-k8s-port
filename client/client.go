@@ -29,45 +29,45 @@ const (
 )
 
 // SayHello sends a HelloRequest to server and returns a HelloResponse
-func SayHello(helloRequest *pb.HelloRequest, headers *map[string]string) (*pb.HelloResponse, error) {
+func SayHello(helloRequest *pb.HelloRequest, header *http.Header) (*pb.HelloResponse, *http.Header, error) {
     binReq, err := marshalRequest(helloRequest)
     if err != nil {
-        return nil, err
+        return nil, nil, err
     }
 
     path := fmt.Sprintf("/%s/%s", greeterService, sayHelloRPC)
-    respBody, header, err := sendRequest(*addr, path, binReq, headers, *timeout)
+    respBody, header, err := sendRequest(*addr, path, binReq, header, *timeout)
     if err != nil {
-        return nil, err
+        return nil, nil, err
     }
 
     msg, err := unmarshalResponse(respBody, header, path)
     if err != nil {
-        return nil, err
+        return nil, nil, err
     }
 
-    return (*msg).(*pb.HelloResponse), nil
+    return (*msg).(*pb.HelloResponse), header, nil
 }
 
 // SayBye sends a ByeRequest to server and returns a ByeResponse
-func SayBye(byeRequest *pb.ByeRequest, headers *map[string]string) (*pb.ByeResponse, error) {
+func SayBye(byeRequest *pb.ByeRequest, header *http.Header) (*pb.ByeResponse, *http.Header, error) {
     binReq, err := marshalRequest(byeRequest)
     if err != nil {
-        return nil, err
+        return nil, nil, err
     }
 
     path := fmt.Sprintf("/%s/%s", greeterService, sayByeRPC)
-    respBody, header, err := sendRequest(*addr, path, binReq, headers, *timeout)
+    respBody, header, err := sendRequest(*addr, path, binReq, header, *timeout)
     if err != nil {
-        return nil, err
+        return nil, nil, err
     }
 
     msg, err := unmarshalResponse(respBody, header, path)
     if err != nil {
-        return nil, err
+        return nil, nil, err
     }
 
-    return (*msg).(*pb.ByeResponse), nil
+    return (*msg).(*pb.ByeResponse), header, nil
 }
 
 // init loads the addr and timeout variables
@@ -93,16 +93,14 @@ func init() {
 }
 
 // sendRequest sends an HTTP POST request with the given byte array and returns the response body as a byte array.
-func sendRequest(addr, path string, binReq []byte, headers *map[string]string, timeout int) ([]byte, *http.Header, error) {
+func sendRequest(addr, path string, binReq []byte, headers *http.Header, timeout int) ([]byte, *http.Header, error) {
     req, err := http.NewRequestWithContext(context.Background(), "POST", addr+path, bytes.NewBuffer(binReq))
     if err != nil {
         return nil, nil, fmt.Errorf("failed to create HTTP request: %w", err)
     }
 
     if headers != nil {
-        for k, v := range *headers {
-            req.Header.Set(k, v)
-        }
+        req.Header = *headers
     }
     req.Header.Set("Content-Type", "application/octet-stream")
 
