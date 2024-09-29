@@ -49,9 +49,9 @@ type ResponseData struct {
 func handleRequest(msg *proto.Message, reqData *RequestData) (proto.Message, error) {
     switch reqData.RequestContext.HTTP.Path {
     case fmt.Sprintf("/%s/%s", greeterService, sayHelloRPC):
-        return handleSayHello((*msg).(*pb.HelloRequest))
+        return handleSayHello((*msg).(*pb.HelloRequest), &reqData.Headers)
     default:
-        return handleSayBye((*msg).(*pb.ByeRequest))
+        return handleSayBye((*msg).(*pb.ByeRequest), &reqData.Headers)
     }
 }
 

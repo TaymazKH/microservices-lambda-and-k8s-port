@@ -7,7 +7,7 @@ import (
 )
 
 // handleSayHello processes the HelloRequest and returns a HelloResponse
-func handleSayHello(helloRequest *pb.HelloRequest) (*pb.HelloResponse, error) {
+func handleSayHello(helloRequest *pb.HelloRequest, headers *map[string]string) (*pb.HelloResponse, error) {
     log.Printf("Received: %v", helloRequest.GetName())
 
     helloResp := &pb.HelloResponse{
@@ -18,7 +18,7 @@ func handleSayHello(helloRequest *pb.HelloRequest) (*pb.HelloResponse, error) {
 }
 
 // handleSayBye processes the ByeRequest and returns a ByeResponse
-func handleSayBye(byeRequest *pb.ByeRequest) (*pb.ByeResponse, error) {
+func handleSayBye(byeRequest *pb.ByeRequest, headers *map[string]string) (*pb.ByeResponse, error) {
     log.Printf("Received: %v", byeRequest.GetName())
 
     byeResp := &pb.ByeResponse{

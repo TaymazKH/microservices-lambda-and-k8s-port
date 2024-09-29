@@ -50,14 +50,14 @@ func init() {
 }
 
 // SayHello sends a HelloRequest to server and returns a HelloResponse
-func SayHello(helloRequest *pb.HelloRequest) (*pb.HelloResponse, error) {
+func SayHello(helloRequest *pb.HelloRequest, headers *map[string]string) (*pb.HelloResponse, error) {
     binReq, err := marshalRequest(helloRequest)
     if err != nil {
         return nil, err
     }
 
     path := fmt.Sprintf("/%s/%s", greeterService, sayHelloRPC)
-    respBody, header, err := sendRequest(*addr, path, binReq, *timeout)
+    respBody, header, err := sendRequest(*addr, path, binReq, headers, *timeout)
     if err != nil {
         return nil, err
     }
@@ -71,14 +71,14 @@ func SayHello(helloRequest *pb.HelloRequest) (*pb.HelloResponse, error) {
 }
 
 // SayBye sends a ByeRequest to server and returns a ByeResponse
-func SayBye(byeRequest *pb.ByeRequest) (*pb.ByeResponse, error) {
+func SayBye(byeRequest *pb.ByeRequest, headers *map[string]string) (*pb.ByeResponse, error) {
     binReq, err := marshalRequest(byeRequest)
     if err != nil {
         return nil, err
     }
 
     path := fmt.Sprintf("/%s/%s", greeterService, sayByeRPC)
-    respBody, header, err := sendRequest(*addr, path, binReq, *timeout)
+    respBody, header, err := sendRequest(*addr, path, binReq, headers, *timeout)
     if err != nil {
         return nil, err
     }
@@ -92,10 +92,16 @@ func SayBye(byeRequest *pb.ByeRequest) (*pb.ByeResponse, error) {
 }
 
 // sendRequest sends an HTTP POST request with the given byte array and returns the response body as a byte array.
-func sendRequest(addr, path string, binReq []byte, timeout int) ([]byte, *http.Header, error) {
+func sendRequest(addr, path string, binReq []byte, headers *map[string]string, timeout int) ([]byte, *http.Header, error) {
     req, err := http.NewRequestWithContext(context.Background(), "POST", addr+path, bytes.NewBuffer(binReq))
     if err != nil {
         return nil, nil, fmt.Errorf("failed to create HTTP request: %w", err)
+    }
+
+    if headers != nil {
+        for k, v := range *headers {
+            req.Header.Set(k, v)
+        }
     }
     req.Header.Set("Content-Type", "application/octet-stream")
 
