@@ -69,18 +69,13 @@ type ResponseData struct {
 }
 
 // decodeRequest decodes the incoming JSON request into a protobuf message
-func decodeRequest(request string) (*proto.Message, *RequestData, error) {
-    var reqData RequestData
-    if err := json.Unmarshal([]byte(request), &reqData); err != nil {
-        return nil, nil, fmt.Errorf("failed to parse request JSON: %w", err)
-    }
-
+func decodeRequest(reqData *RequestData) (*proto.Message, error) {
     var binReqBody []byte
     if reqData.IsBase64Encoded {
         var err error
         binReqBody, err = base64.StdEncoding.DecodeString(reqData.Body)
         if err != nil {
-            return nil, nil, fmt.Errorf("failed to decode base64 body: %w", err)
+            return nil, fmt.Errorf("failed to decode base64 body: %w", err)
         }
     } else {
         binReqBody = []byte(reqData.Body)
@@ -88,24 +83,24 @@ func decodeRequest(request string) (*proto.Message, *RequestData, error) {
 
     msg, err := determineMessageType(reqData.Headers["rpc-name"])
     if err != nil {
-        return nil, nil, err
+        return nil, err
     }
 
     if err := proto.Unmarshal(binReqBody, msg); err != nil {
-        return nil, nil, fmt.Errorf("failed to unmarshal request body: %w", err)
+        return nil, fmt.Errorf("failed to unmarshal request body: %w", err)
     }
 
-    return &msg, &reqData, nil
+    return &msg, nil
 }
 
 // encodeResponse encodes the protobuf response into the outgoing JSON response
-func encodeResponse(msg *proto.Message, rpcError error) (string, error) {
+func encodeResponse(msg *proto.Message, rpcError error) (*ResponseData, error) {
     var respData ResponseData
 
     if rpcError == nil {
         binRespBody, err := proto.Marshal(*msg)
         if err != nil {
-            return "", fmt.Errorf("failed to marshal response: %w", err)
+            return nil, fmt.Errorf("failed to marshal response: %w", err)
         }
 
         encodedRespBody := base64.StdEncoding.EncodeToString(binRespBody) // Base64 encoding is optional.
@@ -131,12 +126,7 @@ func encodeResponse(msg *proto.Message, rpcError error) (string, error) {
         }
     }
 
-    jsonResponse, err := json.Marshal(respData)
-    if err != nil {
-        return "", fmt.Errorf("failed to marshal JSON response: %w", err)
-    }
-
-    return string(jsonResponse), nil
+    return &respData, nil
 }
 
 func runLambda() error {
@@ -147,19 +137,29 @@ func runLambda() error {
     }
     request = request[:len(request)-1] // Trim any trailing newline characters
 
-    reqMsg, reqData, err := decodeRequest(request)
+    var reqData RequestData
+    if err := json.Unmarshal([]byte(request), &reqData); err != nil {
+        return fmt.Errorf("failed to parse request JSON: %w", err)
+    }
+
+    reqMsg, err := decodeRequest(&reqData)
     if err != nil {
         return fmt.Errorf("error decoding request: %w", err)
     }
 
-    respMsg, err := callRPC(reqMsg, reqData)
+    respMsg, err := callRPC(reqMsg, &reqData)
 
-    response, err := encodeResponse(&respMsg, err)
+    respData, err := encodeResponse(&respMsg, err)
     if err != nil {
         return fmt.Errorf("error encoding response: %w", err)
     }
 
-    fmt.Println(response)
+    jsonResponse, err := json.Marshal(respData)
+    if err != nil {
+        return fmt.Errorf("failed to marshal JSON response: %w", err)
+    }
+
+    fmt.Println(string(jsonResponse))
     return nil
 }
 

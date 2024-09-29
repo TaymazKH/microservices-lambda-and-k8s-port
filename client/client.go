@@ -47,7 +47,7 @@ func SayHello(helloRequest *pb.HelloRequest, header *http.Header) (*pb.HelloResp
         return nil, nil, err
     }
 
-    respBody, header, err := sendRequest(*addr, greeterService, sayHelloRPC, binReq, header, *timeout)
+    respBody, header, err := sendRequest(*addr, greeterService, sayHelloRPC, &binReq, header, *timeout)
     if err != nil {
         return nil, nil, err
     }
@@ -67,7 +67,7 @@ func SayBye(byeRequest *pb.ByeRequest, header *http.Header) (*pb.ByeResponse, *h
         return nil, nil, err
     }
 
-    respBody, header, err := sendRequest(*addr, greeterService, sayByeRPC, binReq, header, *timeout)
+    respBody, header, err := sendRequest(*addr, greeterService, sayByeRPC, &binReq, header, *timeout)
     if err != nil {
         return nil, nil, err
     }
@@ -103,8 +103,8 @@ func init() {
 }
 
 // sendRequest sends an HTTP POST request with the given byte array and returns the response body as a byte array.
-func sendRequest(addr, serviceName, rpcName string, binReq []byte, headers *http.Header, timeout int) ([]byte, *http.Header, error) {
-    req, err := http.NewRequestWithContext(context.Background(), "POST", addr+"/"+serviceName, bytes.NewBuffer(binReq))
+func sendRequest(addr, serviceName, rpcName string, binReq *[]byte, headers *http.Header, timeout int) ([]byte, *http.Header, error) {
+    req, err := http.NewRequestWithContext(context.Background(), "POST", addr+"/"+serviceName, bytes.NewBuffer(*binReq))
     if err != nil {
         return nil, nil, fmt.Errorf("failed to create HTTP request: %w", err)
     }
