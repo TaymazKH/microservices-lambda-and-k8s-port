@@ -16,15 +16,14 @@ import (
 )
 
 const (
-    greeterService = "greeter"
-    sayHelloRPC    = "say-hello"
-    sayByeRPC      = "say-bye"
+    sayHelloRPC = "say-hello"
+    sayByeRPC   = "say-bye"
 )
 
 // callRPC chooses the correct handler function to call
 func callRPC(msg *proto.Message, reqData *RequestData) (proto.Message, error) {
-    switch reqData.RequestContext.HTTP.Path {
-    case fmt.Sprintf("/%s/%s", greeterService, sayHelloRPC):
+    switch reqData.Headers["rpc-name"] {
+    case sayHelloRPC:
         return handleSayHello((*msg).(*pb.HelloRequest), &reqData.Headers)
     default:
         return handleSayBye((*msg).(*pb.ByeRequest), &reqData.Headers)
@@ -32,15 +31,15 @@ func callRPC(msg *proto.Message, reqData *RequestData) (proto.Message, error) {
 }
 
 // determineMessageType chooses the correct message type to initialize
-func determineMessageType(rpcPath string) (proto.Message, error) {
+func determineMessageType(rpcName string) (proto.Message, error) {
     var msg proto.Message
-    switch rpcPath {
-    case fmt.Sprintf("/%s/%s", greeterService, sayHelloRPC):
+    switch rpcName {
+    case sayHelloRPC:
         msg = &pb.HelloRequest{}
-    case fmt.Sprintf("/%s/%s", greeterService, sayByeRPC):
+    case sayByeRPC:
         msg = &pb.ByeRequest{}
     default:
-        return nil, fmt.Errorf("unknown path: %s", rpcPath)
+        return nil, fmt.Errorf("unknown RPC name: %s", rpcName)
     }
     return msg, nil
 }
@@ -87,7 +86,7 @@ func decodeRequest(request string) (*proto.Message, *RequestData, error) {
         binReqBody = []byte(reqData.Body)
     }
 
-    msg, err := determineMessageType(reqData.RequestContext.HTTP.Path)
+    msg, err := determineMessageType(reqData.Headers["rpc-name"])
     if err != nil {
         return nil, nil, err
     }
@@ -114,8 +113,8 @@ func encodeResponse(msg *proto.Message, rpcError error) (string, error) {
         respData = ResponseData{
             StatusCode: 200,
             Headers: map[string]string{
-                "Content-Type": "application/octet-stream",
-                "Grpc-Status":  strconv.Itoa(int(codes.OK))},
+                "content-type": "application/octet-stream",
+                "grpc-status":  strconv.Itoa(int(codes.OK))},
             Body:            encodedRespBody, // Use `binRespBody` if not encoded.
             IsBase64Encoded: true,
         }
@@ -125,8 +124,8 @@ func encodeResponse(msg *proto.Message, rpcError error) (string, error) {
         respData = ResponseData{
             StatusCode: 200,
             Headers: map[string]string{
-                "Content-Type": "text/plain",
-                "Grpc-Status":  strconv.Itoa(int(stat.Code()))},
+                "content-type": "text/plain",
+                "grpc-status":  strconv.Itoa(int(stat.Code()))},
             Body:            stat.Message(),
             IsBase64Encoded: false,
         }
