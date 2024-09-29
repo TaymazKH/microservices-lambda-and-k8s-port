@@ -129,6 +129,23 @@ func encodeResponse(msg *proto.Message, rpcError error) (*ResponseData, error) {
     return &respData, nil
 }
 
+// checkRPCExistence returns a ResponseData object with unimplemented status if the RPC name is invalid
+func checkRPCExistence(rpcName string) *ResponseData {
+    if _, err := determineMessageType(rpcName); err != nil {
+        var respData ResponseData
+        respData = ResponseData{
+            StatusCode: 200,
+            Headers: map[string]string{
+                "content-type": "text/plain",
+                "grpc-status":  strconv.Itoa(int(codes.Unimplemented))},
+            Body:            fmt.Sprintf("unknown RPC name: %s", rpcName),
+            IsBase64Encoded: false,
+        }
+        return &respData
+    }
+    return nil
+}
+
 func runLambda() error {
     reader := bufio.NewReader(os.Stdin)
     request, err := reader.ReadString('\n')
@@ -142,16 +159,19 @@ func runLambda() error {
         return fmt.Errorf("failed to parse request JSON: %w", err)
     }
 
-    reqMsg, err := decodeRequest(&reqData)
-    if err != nil {
-        return fmt.Errorf("error decoding request: %w", err)
-    }
+    var respData *ResponseData
+    if respData = checkRPCExistence(reqData.Headers["rpc-name"]); respData == nil {
+        reqMsg, err := decodeRequest(&reqData)
+        if err != nil {
+            return fmt.Errorf("error decoding request: %w", err)
+        }
 
-    respMsg, err := callRPC(reqMsg, &reqData)
+        respMsg, err := callRPC(reqMsg, &reqData)
 
-    respData, err := encodeResponse(&respMsg, err)
-    if err != nil {
-        return fmt.Errorf("error encoding response: %w", err)
+        respData, err = encodeResponse(&respMsg, err)
+        if err != nil {
+            return fmt.Errorf("error encoding response: %w", err)
+        }
     }
 
     jsonResponse, err := json.Marshal(respData)
@@ -164,7 +184,7 @@ func runLambda() error {
 }
 
 func runHTTPServer() {
-
+    //http.HandleFunc("/")
 }
 
 func main() {
