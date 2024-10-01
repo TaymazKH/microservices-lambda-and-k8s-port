@@ -5,9 +5,12 @@ import (
     "encoding/base64"
     "encoding/json"
     "fmt"
+    "io"
     "log"
+    "net/http"
     "os"
     "strconv"
+    "strings"
 
     "google.golang.org/grpc/codes"
     "google.golang.org/grpc/status"
@@ -103,14 +106,15 @@ func encodeResponse(msg *proto.Message, rpcError error) (*ResponseData, error) {
             return nil, fmt.Errorf("failed to marshal response: %w", err)
         }
 
-        encodedRespBody := base64.StdEncoding.EncodeToString(binRespBody) // Base64 encoding is optional.
+        //encodedRespBody := base64.StdEncoding.EncodeToString(binRespBody) // Base64 encoding is optional in Lambda.
 
         respData = &ResponseData{
             StatusCode: 200,
             Headers: map[string]string{
                 "content-type": "application/octet-stream",
                 "grpc-status":  strconv.Itoa(int(codes.OK))},
-            Body:            encodedRespBody, // Use `binRespBody` if not encoded.
+            //Body:            encodedRespBody, // Use if encoded in base64.
+            Body:            string(binRespBody), // Use if not encoded.
             IsBase64Encoded: true,
         }
     } else {
@@ -149,17 +153,18 @@ func runLambda() error {
     }
     request = request[:len(request)-1] // Trim any trailing newline characters
 
-    var reqData RequestData
-    if err := json.Unmarshal([]byte(request), &reqData); err != nil {
+    var reqData *RequestData
+    if err := json.Unmarshal([]byte(request), reqData); err != nil {
         return fmt.Errorf("failed to parse request JSON: %w", err)
     }
 
     var respData *ResponseData
-    reqMsg, respData, err := decodeRequest(&reqData)
+    reqMsg, respData, err := decodeRequest(reqData)
     if err != nil {
         return fmt.Errorf("error decoding request: %w", err)
+
     } else if respData == nil {
-        respMsg, err := callRPC(reqMsg, &reqData)
+        respMsg, err := callRPC(reqMsg, reqData)
 
         respData, err = encodeResponse(&respMsg, err)
         if err != nil {
@@ -176,8 +181,66 @@ func runLambda() error {
     return nil
 }
 
-func runHTTPServer() {
-    //http.HandleFunc("/")
+func runHTTPServer() error {
+    httpHandler := func(w http.ResponseWriter, r *http.Request) {
+        reqBody, err := io.ReadAll(r.Body)
+        if err != nil {
+            log.Printf("Error reading request body: %v", err)
+            http.Error(w, "failed to read request body", http.StatusInternalServerError)
+            return
+        }
+        defer r.Body.Close()
+
+        headers := make(map[string]string)
+        for k, vs := range r.Header {
+            s := vs[0]
+            for _, v := range vs[1:] {
+                s += "," + v
+            }
+            headers[strings.ToLower(k)] = s
+        }
+        fmt.Println(headers)
+
+        reqContext := RequestContext{}
+        reqContext.HTTP.Method = r.Method
+        reqContext.HTTP.Path = r.URL.Path
+
+        reqData := &RequestData{
+            Body:            string(reqBody),
+            Headers:         headers,
+            RequestContext:  reqContext,
+            IsBase64Encoded: false,
+        }
+
+        var respData *ResponseData
+        reqMsg, respData, err := decodeRequest(reqData)
+        if err != nil {
+            log.Printf("Error decoding request: %v", err)
+            http.Error(w, "failed to decode request", http.StatusInternalServerError)
+            return
+
+        } else if respData == nil {
+            respMsg, err := callRPC(reqMsg, reqData)
+
+            respData, err = encodeResponse(&respMsg, err)
+            if err != nil {
+                log.Printf("Error encoding response: %v", err)
+                http.Error(w, "failed to encode response", http.StatusInternalServerError)
+                return
+            }
+        }
+
+        for k, v := range respData.Headers {
+            w.Header().Set(k, v)
+        }
+        w.WriteHeader(respData.StatusCode)
+        if _, err := w.Write([]byte(respData.Body)); err != nil {
+            log.Printf("Error writing response: %v", err)
+        }
+    }
+
+    http.HandleFunc("/", httpHandler)
+    return http.ListenAndServe(":8080", nil)
 }
 
 func main() {
@@ -188,6 +251,8 @@ func main() {
         }
     } else {
         log.Println("Running HTTP server.")
-        runHTTPServer()
+        if err := runHTTPServer(); err != nil {
+            log.Fatalf("HTTP server ended with error: %v", err)
+        }
     }
 }
