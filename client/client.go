@@ -43,44 +43,44 @@ func determineMessageType(rpcName string) proto.Message {
 
 // SayHello represents the Greeter/SayHello RPC.
 // custom headers can be sent and received.
-func SayHello(helloRequest *pb.HelloRequest, header *http.Header) (*pb.HelloResponse, *http.Header, error) {
+func SayHello(helloRequest *pb.HelloRequest, header *http.Header) (*pb.HelloResponse, error) {
     binReq, err := marshalRequest(helloRequest)
     if err != nil {
-        return nil, nil, err
+        return nil, err
     }
 
     respBody, header, err := sendRequest(*addr, greeterService, sayHelloRPC, &binReq, header, *timeout)
     if err != nil {
-        return nil, nil, err
+        return nil, err
     }
 
     msg, err := unmarshalResponse(respBody, header, sayHelloRPC)
     if err != nil {
-        return nil, nil, err
+        return nil, err
     }
 
-    return (*msg).(*pb.HelloResponse), header, nil
+    return (*msg).(*pb.HelloResponse), nil
 }
 
 // SayBye represents the Greeter/SayBye RPC.
 // custom headers can be sent and received.
-func SayBye(byeRequest *pb.ByeRequest, header *http.Header) (*pb.ByeResponse, *http.Header, error) {
+func SayBye(byeRequest *pb.ByeRequest, header *http.Header) (*pb.ByeResponse, error) {
     binReq, err := marshalRequest(byeRequest)
     if err != nil {
-        return nil, nil, err
+        return nil, err
     }
 
     respBody, header, err := sendRequest(*addr, greeterService, sayByeRPC, &binReq, header, *timeout)
     if err != nil {
-        return nil, nil, err
+        return nil, err
     }
 
     msg, err := unmarshalResponse(respBody, header, sayByeRPC)
     if err != nil {
-        return nil, nil, err
+        return nil, err
     }
 
-    return (*msg).(*pb.ByeResponse), header, nil
+    return (*msg).(*pb.ByeResponse), nil
 }
 
 // init loads the addr and timeout variables.

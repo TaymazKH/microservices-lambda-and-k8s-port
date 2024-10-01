@@ -118,8 +118,9 @@ func encodeResponse(msg *proto.Message, rpcError error) (*ResponseData, error) {
                 "content-type": "application/x-protobuf",
                 "grpc-status":  strconv.Itoa(int(codes.OK))},
             //Body:            encodedRespBody, // Use if encoded in base64.
+            //IsBase64Encoded: true,
             Body:            string(binRespBody), // Use if not encoded.
-            IsBase64Encoded: true,
+            IsBase64Encoded: false,
         }
     } else {
         stat := status.Convert(rpcError)
@@ -151,7 +152,7 @@ func runLambda() error {
     request = request[:len(request)-1] // Trim any trailing newline characters
 
     var reqData *RequestData
-    if err := json.Unmarshal([]byte(request), reqData); err != nil {
+    if err := json.Unmarshal([]byte(request), &reqData); err != nil {
         return fmt.Errorf("failed to parse request JSON: %w", err)
     }
 

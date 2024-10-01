@@ -19,7 +19,7 @@ func main() {
         Name: *name,
     }
 
-    helloResp, _, err := SayHello(helloReq, nil)
+    helloResp, err := SayHello(helloReq, nil)
     if err != nil {
         log.Fatalf("Error calling SayHello RPC: %v", err)
     }
@@ -30,7 +30,7 @@ func main() {
         Name: *name,
     }
 
-    byeResp, _, err := SayBye(byeReq, nil)
+    byeResp, err := SayBye(byeReq, nil)
     if err != nil {
         log.Fatalf("Error calling SayBye RPC: %v", err)
     }
