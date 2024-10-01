@@ -15,15 +15,18 @@ import (
     "google.golang.org/grpc/codes"
     "google.golang.org/grpc/status"
     "google.golang.org/protobuf/proto"
+
     pb "main/genproto"
 )
 
 const (
+    defaultPort = "8080"
+
     sayHelloRPC = "say-hello"
     sayByeRPC   = "say-bye"
 )
 
-// callRPC chooses the correct handler function to call
+// callRPC chooses the correct handler function to call.
 func callRPC(msg *proto.Message, reqData *RequestData) (proto.Message, error) {
     switch reqData.Headers["rpc-name"] {
     case sayHelloRPC:
@@ -33,7 +36,7 @@ func callRPC(msg *proto.Message, reqData *RequestData) (proto.Message, error) {
     }
 }
 
-// determineMessageType chooses the correct message type to initialize
+// determineMessageType chooses the correct message type to initialize.
 func determineMessageType(rpcName string) (proto.Message, error) {
     var msg proto.Message
     switch rpcName {
@@ -47,7 +50,7 @@ func determineMessageType(rpcName string) (proto.Message, error) {
     return msg, nil
 }
 
-// RequestContext represents the nested context of the request
+// RequestContext represents the nested context of the request.
 type RequestContext struct {
     HTTP struct {
         Method string `json:"method"`
@@ -55,7 +58,7 @@ type RequestContext struct {
     } `json:"http"`
 }
 
-// RequestData represents the structure of the incoming JSON string
+// RequestData represents the structure of the incoming JSON string or HTTP request.
 type RequestData struct {
     Body            string            `json:"body"`
     Headers         map[string]string `json:"headers"`
@@ -63,7 +66,7 @@ type RequestData struct {
     IsBase64Encoded bool              `json:"isBase64Encoded"`
 }
 
-// ResponseData represents the structure of the outgoing JSON string
+// ResponseData represents the structure of the outgoing JSON string or HTTP request.
 type ResponseData struct {
     StatusCode      int               `json:"statusCode"`
     Headers         map[string]string `json:"headers"`
@@ -71,7 +74,8 @@ type ResponseData struct {
     IsBase64Encoded bool              `json:"isBase64Encoded"`
 }
 
-// decodeRequest decodes the incoming JSON request into a protobuf message
+// decodeRequest decodes the incoming RequestData into a protobuf message.
+// returns a ResponseData in case of an invalid request.
 func decodeRequest(reqData *RequestData) (*proto.Message, *ResponseData, error) {
     var binReqBody []byte
     if reqData.IsBase64Encoded {
@@ -86,17 +90,17 @@ func decodeRequest(reqData *RequestData) (*proto.Message, *ResponseData, error) 
 
     msg, err := determineMessageType(reqData.Headers["rpc-name"])
     if err != nil {
-        return nil, invalidRPCResponse(err), nil
+        return nil, generateErrorResponse(codes.Unimplemented, err.Error()), nil
     }
 
     if err := proto.Unmarshal(binReqBody, msg); err != nil {
-        return nil, invalidMessageResponse(err), nil
+        return nil, generateErrorResponse(codes.InvalidArgument, err.Error()), nil
     }
 
     return &msg, nil, nil
 }
 
-// encodeResponse encodes the protobuf response into the outgoing JSON response
+// encodeResponse encodes a protobuf response message or an error into a ResponseData.
 func encodeResponse(msg *proto.Message, rpcError error) (*ResponseData, error) {
     var respData *ResponseData
 
@@ -111,7 +115,7 @@ func encodeResponse(msg *proto.Message, rpcError error) (*ResponseData, error) {
         respData = &ResponseData{
             StatusCode: 200,
             Headers: map[string]string{
-                "content-type": "application/octet-stream",
+                "content-type": "application/x-protobuf",
                 "grpc-status":  strconv.Itoa(int(codes.OK))},
             //Body:            encodedRespBody, // Use if encoded in base64.
             Body:            string(binRespBody), // Use if not encoded.
@@ -126,14 +130,7 @@ func encodeResponse(msg *proto.Message, rpcError error) (*ResponseData, error) {
     return respData, nil
 }
 
-func invalidRPCResponse(err error) *ResponseData {
-    return generateErrorResponse(codes.Unimplemented, err.Error())
-}
-
-func invalidMessageResponse(err error) *ResponseData {
-    return generateErrorResponse(codes.InvalidArgument, err.Error())
-}
-
+// generateErrorResponse creates a ResponseData from a message and gRPC status code.
 func generateErrorResponse(code codes.Code, message string) *ResponseData {
     return &ResponseData{
         StatusCode: 200,
@@ -239,8 +236,14 @@ func runHTTPServer() error {
         }
     }
 
+    port := defaultPort
+    if p, ok := os.LookupEnv("PORT"); ok {
+        port = p
+    }
+    log.Println("Port:", port)
+
     http.HandleFunc("/", httpHandler)
-    return http.ListenAndServe(":8080", nil)
+    return http.ListenAndServe(":"+port, nil)
 }
 
 func main() {

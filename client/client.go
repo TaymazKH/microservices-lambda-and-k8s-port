@@ -14,6 +14,7 @@ import (
     "google.golang.org/grpc/codes"
     "google.golang.org/grpc/status"
     "google.golang.org/protobuf/proto"
+
     pb "main/genproto"
 )
 
@@ -28,7 +29,7 @@ const (
     sayByeRPC      = "say-bye"
 )
 
-// determineMessageType chooses the correct message type to initialize
+// determineMessageType chooses the correct message type to initialize.
 func determineMessageType(rpcName string) proto.Message {
     var msg proto.Message
     switch rpcName {
@@ -40,7 +41,8 @@ func determineMessageType(rpcName string) proto.Message {
     return msg
 }
 
-// SayHello sends a HelloRequest to server and returns a HelloResponse
+// SayHello represents the Greeter/SayHello RPC.
+// custom headers can be sent and received.
 func SayHello(helloRequest *pb.HelloRequest, header *http.Header) (*pb.HelloResponse, *http.Header, error) {
     binReq, err := marshalRequest(helloRequest)
     if err != nil {
@@ -60,7 +62,8 @@ func SayHello(helloRequest *pb.HelloRequest, header *http.Header) (*pb.HelloResp
     return (*msg).(*pb.HelloResponse), header, nil
 }
 
-// SayBye sends a ByeRequest to server and returns a ByeResponse
+// SayBye represents the Greeter/SayBye RPC.
+// custom headers can be sent and received.
 func SayBye(byeRequest *pb.ByeRequest, header *http.Header) (*pb.ByeResponse, *http.Header, error) {
     binReq, err := marshalRequest(byeRequest)
     if err != nil {
@@ -80,7 +83,7 @@ func SayBye(byeRequest *pb.ByeRequest, header *http.Header) (*pb.ByeResponse, *h
     return (*msg).(*pb.ByeResponse), header, nil
 }
 
-// init loads the addr and timeout variables
+// init loads the addr and timeout variables.
 func init() {
     a, ok := os.LookupEnv("GREETER_SERVICE_ADDR")
     if !ok {
@@ -113,7 +116,7 @@ func sendRequest(addr, serviceName, rpcName string, binReq *[]byte, headers *htt
         req.Header = *headers
     }
     req.Header.Set("rpc-name", rpcName)
-    req.Header.Set("content-type", "application/octet-stream")
+    req.Header.Set("content-type", "application/x-protobuf")
 
     client := &http.Client{Timeout: time.Duration(timeout) * time.Second}
     resp, err := client.Do(req)
@@ -134,7 +137,7 @@ func sendRequest(addr, serviceName, rpcName string, binReq *[]byte, headers *htt
     return respBody, &resp.Header, nil
 }
 
-// marshalRequest marshals a proto message object into a byte array.
+// marshalRequest marshals a protobuf message into a byte array.
 func marshalRequest(msg proto.Message) ([]byte, error) {
     binReq, err := proto.Marshal(msg)
     if err != nil {
@@ -143,7 +146,7 @@ func marshalRequest(msg proto.Message) ([]byte, error) {
     return binReq, nil
 }
 
-// unmarshalResponse unmarshalls a byte array into a proto message object.
+// unmarshalResponse unmarshalls a byte array into a protobuf message.
 func unmarshalResponse(respBody []byte, header *http.Header, rpcName string) (*proto.Message, error) {
     if header.Get("grpc-status") == "" {
         return nil, fmt.Errorf("missing grpc-status header")
