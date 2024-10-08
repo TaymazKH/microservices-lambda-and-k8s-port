@@ -197,7 +197,6 @@ func runHTTPServer() error {
             }
             headers[strings.ToLower(k)] = s
         }
-        fmt.Println(headers)
 
         reqContext := RequestContext{}
         reqContext.HTTP.Method = r.Method
