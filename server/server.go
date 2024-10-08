@@ -115,7 +115,7 @@ func encodeResponse(msg *proto.Message, rpcError error) (*ResponseData, error) {
         respData = &ResponseData{
             StatusCode: 200,
             Headers: map[string]string{
-                "content-type": "application/x-protobuf",
+                "content-type": "application/octet-stream",
                 "grpc-status":  strconv.Itoa(int(codes.OK))},
             //Body:            encodedRespBody, // Use if encoded in base64.
             //IsBase64Encoded: true,
