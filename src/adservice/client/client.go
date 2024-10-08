@@ -41,7 +41,7 @@ func sendRequest(addr, serviceName, rpcName string, binReq *[]byte, headers *htt
         req.Header = *headers
     }
     req.Header.Set("rpc-name", rpcName)
-    req.Header.Set("content-type", "application/x-protobuf")
+    req.Header.Set("content-type", "application/octet-stream")
 
     client := &http.Client{Timeout: time.Duration(timeout) * time.Second}
     resp, err := client.Do(req)

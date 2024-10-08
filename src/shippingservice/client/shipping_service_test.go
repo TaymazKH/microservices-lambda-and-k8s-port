@@ -31,11 +31,10 @@ func TestGetQuote(t *testing.T) {
         },
     }
 
-    res, err := GetQuote(req)
+    res, err := GetQuote(req, nil)
     if err != nil {
         t.Errorf("TestGetQuote (%v) failed", err)
-    }
-    if res.CostUsd.GetUnits() != 8 || res.CostUsd.GetNanos() != 990000000 {
+    } else if res.CostUsd.GetUnits() != 8 || res.CostUsd.GetNanos() != 990000000 {
         t.Errorf("TestGetQuote: Quote value '%d.%d' does not match expected '%s'", res.CostUsd.GetUnits(), res.CostUsd.GetNanos(), "11.220000000")
     }
 }
@@ -64,12 +63,11 @@ func TestShipOrder(t *testing.T) {
         },
     }
 
-    res, err := ShipOrder(req)
+    res, err := ShipOrder(req, nil)
     if err != nil {
         t.Errorf("TestShipOrder (%v) failed", err)
-    }
-    // @todo improve quality of this test to check for a pattern such as '[A-Z]{2}-\d+-\d+'.
-    if len(res.TrackingId) != 18 {
+    } else if len(res.TrackingId) != 18 {
+        // @todo improve quality of this test to check for a pattern such as '[A-Z]{2}-\d+-\d+'.
         t.Errorf("TestShipOrder: Tracking ID is malformed - has %d characters, %d expected", len(res.TrackingId), 18)
     }
 }

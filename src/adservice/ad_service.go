@@ -46,7 +46,7 @@ func createAdsMap() map[string][]*pb.Ad {
 }
 
 // GetAds processes the AdRequest and returns an AdResponse
-func (s *AdService) GetAds(req *pb.AdRequest) (*pb.AdResponse, error) {
+func (s *AdService) GetAds(req *pb.AdRequest, headers *map[string]string) (*pb.AdResponse, error) {
     var allAds []*pb.Ad
     log.Printf("Received ad request (context_words=%v)", req.ContextKeys)
 

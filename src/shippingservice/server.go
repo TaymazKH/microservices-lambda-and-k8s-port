@@ -19,21 +19,20 @@ import (
     pb "main/genproto"
 )
 
-var (
-    svc = NewAdService()
-)
-
 const (
     defaultPort = "8080"
 
-    getAdsRPC = "get-ads"
+    getQuoteRPC  = "get-quote"
+    shipOrderRPC = "ship-order"
 )
 
 // callRPC chooses the correct handler function to call.
 func callRPC(msg *proto.Message, reqData *RequestData) (proto.Message, error) {
     switch reqData.Headers["rpc-name"] {
+    case getQuoteRPC:
+        return handleGetQuote((*msg).(*pb.GetQuoteRequest), &reqData.Headers)
     default:
-        return svc.GetAds((*msg).(*pb.AdRequest), &reqData.Headers)
+        return handleShipOrder((*msg).(*pb.ShipOrderRequest), &reqData.Headers)
     }
 }
 
@@ -41,8 +40,10 @@ func callRPC(msg *proto.Message, reqData *RequestData) (proto.Message, error) {
 func determineMessageType(rpcName string) (proto.Message, error) {
     var msg proto.Message
     switch rpcName {
-    case getAdsRPC:
-        msg = &pb.AdRequest{}
+    case getQuoteRPC:
+        msg = &pb.GetQuoteRequest{}
+    case shipOrderRPC:
+        msg = &pb.ShipOrderRequest{}
     default:
         return nil, fmt.Errorf("unknown RPC name: %s", rpcName)
     }
