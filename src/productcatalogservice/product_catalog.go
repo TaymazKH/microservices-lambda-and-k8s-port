@@ -13,13 +13,13 @@ type productCatalog struct {
     catalog pb.ListProductsResponse
 }
 
-func (p *productCatalog) ListProducts(*pb.Empty) (*pb.ListProductsResponse, error) {
+func (p *productCatalog) ListProducts(empty *pb.Empty, headers *map[string]string) (*pb.ListProductsResponse, error) {
     time.Sleep(extraLatency)
 
     return &pb.ListProductsResponse{Products: p.parseCatalog()}, nil
 }
 
-func (p *productCatalog) GetProduct(req *pb.GetProductRequest) (*pb.Product, error) {
+func (p *productCatalog) GetProduct(req *pb.GetProductRequest, headers *map[string]string) (*pb.Product, error) {
     time.Sleep(extraLatency)
 
     var found *pb.Product
@@ -35,7 +35,7 @@ func (p *productCatalog) GetProduct(req *pb.GetProductRequest) (*pb.Product, err
     return found, nil
 }
 
-func (p *productCatalog) SearchProducts(req *pb.SearchProductsRequest) (*pb.SearchProductsResponse, error) {
+func (p *productCatalog) SearchProducts(req *pb.SearchProductsRequest, headers *map[string]string) (*pb.SearchProductsResponse, error) {
     time.Sleep(extraLatency)
 
     var ps []*pb.Product
