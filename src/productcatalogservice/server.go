@@ -76,7 +76,7 @@ func determineMessageType(rpcName string) (proto.Message, error) {
     case listProductsRPC:
         msg = &pb.Empty{}
     case getProductRPC:
-        msg = &pb.GetQuoteRequest{}
+        msg = &pb.GetProductRequest{}
     case searchProductsRPC:
         msg = &pb.SearchProductsRequest{}
     default:

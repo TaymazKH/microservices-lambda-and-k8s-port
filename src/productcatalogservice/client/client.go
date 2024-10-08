@@ -2,7 +2,6 @@ package client
 
 import (
     "bytes"
-    "context"
     "fmt"
     "io"
     "net/http"
@@ -36,7 +35,7 @@ func determineMessageType(rpcName string) proto.Message {
 
 // sendRequest sends an HTTP POST request with the given byte array and returns the response body as a byte array.
 func sendRequest(addr, serviceName, rpcName string, binReq *[]byte, headers *http.Header, timeout int) ([]byte, *http.Header, error) {
-    req, err := http.NewRequestWithContext(context.Background(), "POST", addr+"/"+serviceName, bytes.NewBuffer(*binReq))
+    req, err := http.NewRequest(http.MethodPost, addr+"/"+serviceName, bytes.NewBuffer(*binReq))
     if err != nil {
         return nil, nil, fmt.Errorf("failed to create HTTP request: %w", err)
     }
