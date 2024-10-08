@@ -3,66 +3,45 @@ package client
 import (
     "bytes"
     "context"
-    "flag"
     "fmt"
-    "google.golang.org/grpc/codes"
-    "google.golang.org/grpc/status"
     "io"
     "net/http"
     "strconv"
     "time"
 
+    "google.golang.org/grpc/codes"
+    "google.golang.org/grpc/status"
     "google.golang.org/protobuf/proto"
+
     pb "main/genproto"
 )
 
-var (
-    addr       = flag.String("addr", "localhost:50051", "The address to connect to")
-    contextKey = flag.String("contextKey", "camera", "Context key for ad request")
-    timeout    = flag.Int("timeout", 5, "Timeout in seconds")
-)
-
 const (
-    adService = "ad-service"
-    getAdsRPC = "get-ads"
+    defaultTimeout = 10
 )
 
-func GetAds(adRequest *pb.AdRequest) (*pb.AdResponse, error) {
-    binReq, err := marshalRequest(adRequest)
-    if err != nil {
-        return nil, err
+// determineMessageType chooses the correct message type to initialize.
+func determineMessageType(rpcName string) proto.Message {
+    var msg proto.Message
+    switch rpcName {
+    default:
+        msg = &pb.AdResponse{}
     }
-
-    path := fmt.Sprintf("/%s/%s", adService, getAdsRPC)
-    respBody, header, err := sendRequest(*addr, path, binReq, *timeout)
-    if err != nil {
-        return nil, err
-    }
-
-    msg, err := unmarshalResponse(respBody, header, path)
-    if err != nil {
-        return nil, err
-    }
-
-    return (*msg).(*pb.AdResponse), nil
-}
-
-// marshalRequest marshals a proto message object into a byte array.
-func marshalRequest(msg proto.Message) ([]byte, error) {
-    binReq, err := proto.Marshal(msg)
-    if err != nil {
-        return nil, fmt.Errorf("failed to marshal request: %w", err)
-    }
-    return binReq, nil
+    return msg
 }
 
 // sendRequest sends an HTTP POST request with the given byte array and returns the response body as a byte array.
-func sendRequest(addr, path string, binReq []byte, timeout int) ([]byte, *http.Header, error) {
-    req, err := http.NewRequestWithContext(context.Background(), "POST", addr+path, bytes.NewBuffer(binReq))
+func sendRequest(addr, serviceName, rpcName string, binReq *[]byte, headers *http.Header, timeout int) ([]byte, *http.Header, error) {
+    req, err := http.NewRequestWithContext(context.Background(), "POST", addr+"/"+serviceName, bytes.NewBuffer(*binReq))
     if err != nil {
         return nil, nil, fmt.Errorf("failed to create HTTP request: %w", err)
     }
-    req.Header.Set("Content-Type", "application/octet-stream")
+
+    if headers != nil {
+        req.Header = *headers
+    }
+    req.Header.Set("rpc-name", rpcName)
+    req.Header.Set("content-type", "application/x-protobuf")
 
     client := &http.Client{Timeout: time.Duration(timeout) * time.Second}
     resp, err := client.Do(req)
@@ -83,29 +62,34 @@ func sendRequest(addr, path string, binReq []byte, timeout int) ([]byte, *http.H
     return respBody, &resp.Header, nil
 }
 
-// unmarshalResponse unmarshalls a byte array into a proto message object.
-func unmarshalResponse(respBody []byte, header *http.Header, path string) (*proto.Message, error) {
-    if header.Get("Grpc-Code") == "" {
-        return nil, fmt.Errorf("missing Grpc-Code header")
-    }
-
-    grpcCode, err := strconv.Atoi(header.Get("Grpc-Code"))
+// marshalRequest marshals a protobuf message into a byte array.
+func marshalRequest(msg proto.Message) ([]byte, error) {
+    binReq, err := proto.Marshal(msg)
     if err != nil {
-        return nil, fmt.Errorf("failed to parse Grpc-Code header: %w", err)
+        return nil, fmt.Errorf("failed to marshal request: %w", err)
+    }
+    return binReq, nil
+}
+
+// unmarshalResponse unmarshalls a byte array into a protobuf message.
+func unmarshalResponse(respBody []byte, header *http.Header, rpcName string) (*proto.Message, error) {
+    if header.Get("grpc-status") == "" {
+        return nil, fmt.Errorf("missing grpc-status header")
     }
 
-    if grpcCode := codes.Code(grpcCode); grpcCode == codes.OK {
-        var msg proto.Message
-        switch path {
-        default:
-            msg = &pb.AdResponse{}
-        }
+    grpcStatus, err := strconv.Atoi(header.Get("grpc-status"))
+    if err != nil {
+        return nil, fmt.Errorf("failed to parse grpc-status header: %w", err)
+    }
+
+    if grpcStatus := codes.Code(grpcStatus); grpcStatus == codes.OK {
+        msg := determineMessageType(rpcName)
 
         if err := proto.Unmarshal(respBody, msg); err != nil {
             return nil, fmt.Errorf("failed to unmarshal response: %w", err)
         }
         return &msg, nil
     } else {
-        return nil, status.Error(grpcCode, string(respBody))
+        return nil, status.Error(grpcStatus, string(respBody))
     }
 }
