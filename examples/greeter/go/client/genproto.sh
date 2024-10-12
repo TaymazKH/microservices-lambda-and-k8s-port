@@ -1,6 +1,6 @@
 #!/bin/bash -eu
 
-protodir=../protos
+protodir=../../protos
 protoname=genproto
 
 mkdir -p $protoname
