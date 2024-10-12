@@ -26,6 +26,8 @@ import (
 )
 
 var (
+    runningInLambda = os.Getenv("RUN_LAMBDA") == "1"
+
     catalogMutex *sync.Mutex
     log          *logrus.Logger
     extraLatency time.Duration
@@ -85,20 +87,12 @@ func determineMessageType(rpcName string) (proto.Message, error) {
     return msg, nil
 }
 
-// RequestContext represents the nested context of the request.
-type RequestContext struct {
-    HTTP struct {
-        Method string `json:"method"`
-        Path   string `json:"path"`
-    } `json:"http"`
-}
-
 // RequestData represents the structure of the incoming JSON string or HTTP request.
 type RequestData struct {
     Body            string            `json:"body"`
     Headers         map[string]string `json:"headers"`
-    RequestContext  RequestContext    `json:"requestContext"`
     IsBase64Encoded bool              `json:"isBase64Encoded"`
+    BinBody         []byte
 }
 
 // ResponseData represents the structure of the outgoing JSON string or HTTP request.
@@ -107,6 +101,7 @@ type ResponseData struct {
     Headers         map[string]string `json:"headers"`
     Body            string            `json:"body"`
     IsBase64Encoded bool              `json:"isBase64Encoded"`
+    BinBody         []byte
 }
 
 // decodeRequest decodes the incoming RequestData into a protobuf message.
@@ -120,7 +115,7 @@ func decodeRequest(reqData *RequestData) (*proto.Message, *ResponseData, error) 
             return nil, nil, fmt.Errorf("failed to decode base64 body: %w", err)
         }
     } else {
-        binReqBody = []byte(reqData.Body)
+        binReqBody = reqData.BinBody
     }
 
     msg, err := determineMessageType(reqData.Headers["rpc-name"])
@@ -145,18 +140,26 @@ func encodeResponse(msg *proto.Message, rpcError error) (*ResponseData, error) {
             return nil, fmt.Errorf("failed to marshal response: %w", err)
         }
 
-        //encodedRespBody := base64.StdEncoding.EncodeToString(binRespBody) // Base64 encoding is optional in Lambda.
-
-        respData = &ResponseData{
-            StatusCode: 200,
-            Headers: map[string]string{
-                "content-type": "application/octet-stream",
-                "grpc-status":  strconv.Itoa(int(codes.OK))},
-            //Body:            encodedRespBody, // Use if encoded in base64.
-            //IsBase64Encoded: true,
-            Body:            string(binRespBody), // Use if not encoded.
-            IsBase64Encoded: false,
+        if runningInLambda {
+            respData = &ResponseData{
+                StatusCode: 200,
+                Headers: map[string]string{
+                    "content-type": "application/octet-stream",
+                    "grpc-status":  strconv.Itoa(int(codes.OK))},
+                Body:            base64.StdEncoding.EncodeToString(binRespBody),
+                IsBase64Encoded: true,
+            }
+        } else {
+            respData = &ResponseData{
+                StatusCode: 200,
+                Headers: map[string]string{
+                    "content-type": "application/octet-stream",
+                    "grpc-status":  strconv.Itoa(int(codes.OK))},
+                BinBody:         binRespBody,
+                IsBase64Encoded: false,
+            }
         }
+
     } else {
         stat := status.Convert(rpcError)
 
@@ -184,7 +187,7 @@ func runLambda() error {
     if err != nil {
         return fmt.Errorf("failed to read from stdin: %w", err)
     }
-    request = request[:len(request)-1] // Trim any trailing newline characters
+    request = strings.TrimSpace(request)
 
     var reqData *RequestData
     if err := json.Unmarshal([]byte(request), &reqData); err != nil {
@@ -233,14 +236,9 @@ func runHTTPServer() error {
             headers[strings.ToLower(k)] = s
         }
 
-        reqContext := RequestContext{}
-        reqContext.HTTP.Method = r.Method
-        reqContext.HTTP.Path = r.URL.Path
-
         reqData := &RequestData{
-            Body:            string(reqBody),
+            BinBody:         reqBody,
             Headers:         headers,
-            RequestContext:  reqContext,
             IsBase64Encoded: false,
         }
 
@@ -266,7 +264,7 @@ func runHTTPServer() error {
             w.Header().Set(k, v)
         }
         w.WriteHeader(respData.StatusCode)
-        if _, err := w.Write([]byte(respData.Body)); err != nil {
+        if _, err := w.Write(respData.BinBody); err != nil {
             log.Printf("Error writing response: %v", err)
         }
     }
@@ -313,7 +311,7 @@ func main() {
     //    }
     //}()
 
-    if os.Getenv("RUN_LAMBDA") == "1" {
+    if runningInLambda {
         log.Println("Running Lambda handler.")
         if err := runLambda(); err != nil {
             log.Fatalf("Error running lambda handler: %v", err)
