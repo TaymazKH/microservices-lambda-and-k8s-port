@@ -7,6 +7,7 @@ from google.protobuf.message import DecodeError, Message
 
 from common import GrpcError
 from genproto import hello_pb2 as pb
+from greeter_service import say_hello, say_bye
 from logger import get_simple_logger
 
 logger = get_simple_logger('greeterservice-server')
