@@ -71,7 +71,7 @@ def decode_request(req_data: RequestData) -> (Message, ResponseData):
         return None, generate_error_response(grpc.StatusCode.UNIMPLEMENTED, f"Unknown RPC name: {rpc_name}")
 
     try:
-        msg.ParseFromString(bin_req_body)  # todo: decode to string?
+        msg.ParseFromString(bin_req_body)
     except DecodeError as e:
         return None, generate_error_response(grpc.StatusCode.INVALID_ARGUMENT, str(e))
 

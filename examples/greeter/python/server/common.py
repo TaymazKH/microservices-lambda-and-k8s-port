@@ -1,15 +1,17 @@
-import grpc
+from grpc import RpcError, StatusCode
 from grpc_status._common import code_to_grpc_status_code
 
 
-class GrpcError(grpc.RpcError):
-    def __init__(self, code: grpc.StatusCode | int, message: str = ""):
-        if code is None or code == grpc.StatusCode.OK or code == grpc.StatusCode.OK.value[0]:
+class GrpcError(RpcError):
+    def __init__(self, code: StatusCode | int, message: str = ""):
+        if code is None or code == StatusCode.OK or code == StatusCode.OK.value[0]:
             raise ValueError("Non-OK status code expected for errors")
-        if type(code) == int:
+        if isinstance(code, int):
             self._code = code_to_grpc_status_code(code)
-        else:
+        elif isinstance(code, StatusCode):
             self._code = code
+        else:
+            raise TypeError(f"Status code must be grpc.StatusCode or int, not {type(code)}")
         self._message = message
 
     @property
