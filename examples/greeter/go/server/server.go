@@ -32,24 +32,22 @@ const (
 func callRPC(msg *proto.Message, reqData *RequestData) (proto.Message, error) {
     switch reqData.Headers["rpc-name"] {
     case sayHelloRPC:
-        return handleSayHello((*msg).(*pb.HelloRequest), &reqData.Headers)
+        return sayHello((*msg).(*pb.HelloRequest), &reqData.Headers)
     default:
-        return handleSayBye((*msg).(*pb.ByeRequest), &reqData.Headers)
+        return sayBye((*msg).(*pb.ByeRequest), &reqData.Headers)
     }
 }
 
 // determineMessageType chooses the correct message type to initialize.
-func determineMessageType(rpcName string) (proto.Message, error) {
-    var msg proto.Message
+func determineMessageType(rpcName string) proto.Message {
     switch rpcName {
     case sayHelloRPC:
-        msg = &pb.HelloRequest{}
+        return &pb.HelloRequest{}
     case sayByeRPC:
-        msg = &pb.ByeRequest{}
+        return &pb.ByeRequest{}
     default:
-        return nil, fmt.Errorf("unknown RPC name: %s", rpcName)
+        return nil
     }
-    return msg, nil
 }
 
 // RequestData represents the structure of the incoming JSON string or HTTP request.
@@ -83,9 +81,10 @@ func decodeRequest(reqData *RequestData) (*proto.Message, *ResponseData, error) 
         binReqBody = reqData.BinBody
     }
 
-    msg, err := determineMessageType(reqData.Headers["rpc-name"])
-    if err != nil {
-        return nil, generateErrorResponse(codes.Unimplemented, err.Error()), nil
+    rpcName := reqData.Headers["rpc-name"]
+    msg := determineMessageType(rpcName)
+    if msg == nil {
+        return nil, generateErrorResponse(codes.Unimplemented, fmt.Sprintf("unknown RPC name: %s", rpcName)), nil
     }
 
     if err := proto.Unmarshal(binReqBody, msg); err != nil {
@@ -97,41 +96,36 @@ func decodeRequest(reqData *RequestData) (*proto.Message, *ResponseData, error) 
 
 // encodeResponse encodes a protobuf response message or an error into a ResponseData.
 func encodeResponse(msg *proto.Message, rpcError error) (*ResponseData, error) {
-    var respData *ResponseData
-
-    if rpcError == nil {
-        binRespBody, err := proto.Marshal(*msg)
-        if err != nil {
-            return nil, fmt.Errorf("failed to marshal response: %w", err)
-        }
-
-        if runningInLambda {
-            respData = &ResponseData{
-                StatusCode: 200,
-                Headers: map[string]string{
-                    "content-type": "application/octet-stream",
-                    "grpc-status":  strconv.Itoa(int(codes.OK))},
-                Body:            base64.StdEncoding.EncodeToString(binRespBody),
-                IsBase64Encoded: true,
-            }
-        } else {
-            respData = &ResponseData{
-                StatusCode: 200,
-                Headers: map[string]string{
-                    "content-type": "application/octet-stream",
-                    "grpc-status":  strconv.Itoa(int(codes.OK))},
-                BinBody:         binRespBody,
-                IsBase64Encoded: false,
-            }
-        }
-
-    } else {
+    if rpcError != nil {
         stat := status.Convert(rpcError)
-
-        respData = generateErrorResponse(stat.Code(), stat.Message())
+        return generateErrorResponse(stat.Code(), stat.Message()), nil
     }
 
-    return respData, nil
+    binRespBody, err := proto.Marshal(*msg)
+    if err != nil {
+        return nil, fmt.Errorf("failed to marshal response: %w", err)
+    }
+
+    if runningInLambda {
+        return &ResponseData{
+            StatusCode: 200,
+            Headers: map[string]string{
+                "content-type": "application/octet-stream",
+                "grpc-status":  strconv.Itoa(int(codes.OK))},
+            Body:            base64.StdEncoding.EncodeToString(binRespBody),
+            IsBase64Encoded: true,
+        }, nil
+
+    } else {
+        return &ResponseData{
+            StatusCode: 200,
+            Headers: map[string]string{
+                "content-type": "application/octet-stream",
+                "grpc-status":  strconv.Itoa(int(codes.OK))},
+            BinBody:         binRespBody,
+            IsBase64Encoded: false,
+        }, nil
+    }
 }
 
 // generateErrorResponse creates a ResponseData from a message and gRPC status code.
@@ -165,9 +159,9 @@ func runLambda() error {
         return fmt.Errorf("error decoding request: %w", err)
 
     } else if respData == nil {
-        respMsg, err := callRPC(reqMsg, reqData)
+        respMsg, rpcError := callRPC(reqMsg, reqData)
 
-        respData, err = encodeResponse(&respMsg, err)
+        respData, err = encodeResponse(&respMsg, rpcError)
         if err != nil {
             return fmt.Errorf("error encoding response: %w", err)
         }
@@ -215,9 +209,9 @@ func runHTTPServer() error {
             return
 
         } else if respData == nil {
-            respMsg, err := callRPC(reqMsg, reqData)
+            respMsg, rpcError := callRPC(reqMsg, reqData)
 
-            respData, err = encodeResponse(&respMsg, err)
+            respData, err = encodeResponse(&respMsg, rpcError)
             if err != nil {
                 log.Printf("Error encoding response: %v", err)
                 http.Error(w, "failed to encode response", http.StatusInternalServerError)

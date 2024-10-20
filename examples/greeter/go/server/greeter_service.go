@@ -6,8 +6,8 @@ import (
     pb "main/genproto"
 )
 
-// handleSayHello processes the HelloRequest and returns a HelloResponse
-func handleSayHello(helloRequest *pb.HelloRequest, headers *map[string]string) (*pb.HelloResponse, error) {
+// sayHello processes the HelloRequest and returns a HelloResponse
+func sayHello(helloRequest *pb.HelloRequest, headers *map[string]string) (*pb.HelloResponse, error) {
     log.Printf("Received: %v", helloRequest.GetName())
 
     helloResp := &pb.HelloResponse{
@@ -17,8 +17,8 @@ func handleSayHello(helloRequest *pb.HelloRequest, headers *map[string]string) (
     return helloResp, nil
 }
 
-// handleSayBye processes the ByeRequest and returns a ByeResponse
-func handleSayBye(byeRequest *pb.ByeRequest, headers *map[string]string) (*pb.ByeResponse, error) {
+// sayBye processes the ByeRequest and returns a ByeResponse
+func sayBye(byeRequest *pb.ByeRequest, headers *map[string]string) (*pb.ByeResponse, error) {
     log.Printf("Received: %v", byeRequest.GetName())
 
     byeResp := &pb.ByeResponse{
