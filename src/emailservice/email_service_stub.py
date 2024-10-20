@@ -1,8 +1,8 @@
 import os
 
-from .client import marshal_request, unmarshal_response, send_request, DEFAULT_TIMEOUT, \
+from client import marshal_request, unmarshal_response, send_request, DEFAULT_TIMEOUT, \
     EMAIL_SERVICE, SEND_ORDER_CONFIRMATION_RPC
-from ..logger import getJSONLogger
+from logger import getJSONLogger
 
 logger = getJSONLogger('emailservice-stub')
 

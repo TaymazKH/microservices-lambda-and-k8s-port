@@ -1,9 +1,9 @@
 import unittest
 
-from .email_service_stub import send_order_confirmation
-from ..common import GrpcError
-from ..genproto import demo_pb2 as pb
-from ..logger import getJSONLogger
+from email_service_stub import send_order_confirmation
+from common import GrpcError
+from genproto import demo_pb2 as pb
+from logger import getJSONLogger
 
 logger = getJSONLogger('emailservice-test')
 

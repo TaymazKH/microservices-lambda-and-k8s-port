@@ -2,8 +2,8 @@ import grpc
 import requests
 from google.protobuf.message import EncodeError, DecodeError
 
-from ..common import GrpcError
-from ..genproto import demo_pb2 as pb
+from common import GrpcError
+from genproto import demo_pb2 as pb
 
 EMAIL_SERVICE = "email-service"
 SEND_ORDER_CONFIRMATION_RPC = "send-order-confirmation"
