@@ -9,7 +9,7 @@ logger = getJSONLogger('recommendationservice-logic')
 
 class RecommendationService:
     @staticmethod
-    def ListRecommendations(request):
+    def ListRecommendations(request, headers):
         max_responses = 5
 
         # fetch list of products from product catalog stub

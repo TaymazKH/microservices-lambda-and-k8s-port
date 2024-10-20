@@ -7,4 +7,4 @@ cd site_packages
 zip -r ../deployment.zip .
 cd ..
 
-zip -r deployment.zip genproto recommendation_service.py product_catalog_stub.py logger.py common.py server.py
+zip -r deployment.zip genproto common.py logger.py server.py recommendation_service.py product_catalog_stub.py client.py

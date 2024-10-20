@@ -1,53 +1,70 @@
 import grpc
 import requests
-from google.protobuf.message import DecodeError
+from google.protobuf.message import EncodeError, DecodeError
 
 from common import GrpcError
 from genproto import demo_pb2 as pb
 
+DEFAULT_TIMEOUT = 10
+
 RECOMMENDATION_SERVICE = "recommendation-service"
 LIST_RECOMMENDATIONS_RPC = "list-recommendations"
 
-
-def list_recommendations(list_recommendations_request, addr, timeout):
-    bin_req = marshal_request(list_recommendations_request)
-
-    path = f"/{RECOMMENDATION_SERVICE}/{LIST_RECOMMENDATIONS_RPC}"
-    resp_body, headers = send_request(addr, path, bin_req, timeout)
-
-    return unmarshal_response(resp_body, headers, path)
+PRODUCT_CATALOG_SERVICE = "product-catalog-service"
+LIST_PRODUCTS_RPC = "list-products"
+GET_PRODUCT_RPC = "get-product"
+SEARCH_PRODUCTS_RPC = "search-products"
 
 
-def send_request(addr, path, bin_req, timeout):
+def determine_message_type(rpc_name):
+    if rpc_name == LIST_PRODUCTS_RPC:
+        return pb.ListProductsResponse()
+    elif rpc_name == GET_PRODUCT_RPC:
+        return pb.Product()
+    elif rpc_name == SEARCH_PRODUCTS_RPC:
+        return pb.SearchProductsResponse()
+    else:
+        return pb.ListRecommendationsResponse()
+
+
+def send_request(addr, service_name, rpc_name, bin_req, headers=None, timeout=DEFAULT_TIMEOUT):
+    if headers is None:
+        headers = {}
+    headers['rpc-name'] = rpc_name
+    headers['content-type'] = 'application/octet-stream'
+
     try:
-        response = requests.post(f"{addr}{path}",
-                                 data=bin_req,
-                                 headers={"Content-Type": "application/octet-stream"},
-                                 timeout=timeout)
+        response = requests.post(f"{addr}/{service_name}", data=bin_req, headers=headers, timeout=timeout)
         response.raise_for_status()
         return response.content, response.headers
     except requests.RequestException as e:
-        raise RuntimeError(f"Failed to send request: {e}")
+        raise RuntimeError(f"Failed to send HTTP request: {e}")
 
 
 def marshal_request(msg):
-    return msg.SerializeToString()
+    try:
+        return msg.SerializeToString()
+    except EncodeError as e:
+        raise RuntimeError(f"Failed to marshal request: {e}")
 
 
-def unmarshal_response(resp_body, headers, path):
-    grpc_code = headers.get("Grpc-Code")
-    if grpc_code is None:
-        raise ValueError("Missing Grpc-Code header")
+def unmarshal_response(resp_body, headers, rpc_name):
+    grpc_status = headers.get("grpc-status")
+    if grpc_status is None:
+        raise KeyError("Missing grpc-status header")
 
-    grpc_code = int(grpc_code)
+    try:
+        grpc_status = int(grpc_status)
+    except ValueError:
+        raise ValueError(f"Failed to parse grpc-status header: {grpc_status}")
 
-    if grpc_code == grpc.StatusCode.OK.value[0]:
-        msg = pb.ListRecommendationsResponse()
+    if grpc_status == grpc.StatusCode.OK.value[0]:
+        msg = determine_message_type(rpc_name)
 
         try:
             msg.ParseFromString(resp_body)
             return msg
         except DecodeError as e:
-            raise ValueError(f"Failed to parse response body: {e}")
+            raise RuntimeError(f"Failed to unmarshal response: {e}")
     else:
-        raise GrpcError(code=grpc_code, message=resp_body)
+        raise GrpcError(code=grpc_status, message=resp_body)
