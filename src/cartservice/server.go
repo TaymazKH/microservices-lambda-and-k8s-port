@@ -21,6 +21,8 @@ import (
 
 var (
     runningInLambda = os.Getenv("RUN_LAMBDA") == "1"
+
+    svc = NewCartService(nil) // todo: initialize a CartStore
 )
 
 const (
@@ -33,14 +35,13 @@ const (
 
 // callRPC chooses the correct handler function to call.
 func callRPC(msg *proto.Message, reqData *RequestData) (proto.Message, error) {
-    // todo
     switch reqData.Headers["rpc-name"] {
     case addItemRPC:
-        return nil, nil
-    case emptyCartRPC:
-        return nil, nil
+        return svc.AddItem((*msg).(*pb.AddItemRequest), &reqData.Headers)
+    case getCartRPC:
+        return svc.GetCart((*msg).(*pb.GetCartRequest), &reqData.Headers)
     default:
-        return nil, nil
+        return svc.EmptyCart((*msg).(*pb.EmptyCartRequest), &reqData.Headers)
     }
 }
 
