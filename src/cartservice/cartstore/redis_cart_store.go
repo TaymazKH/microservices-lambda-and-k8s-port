@@ -96,16 +96,9 @@ func (store *RedisCartStore) GetCartAsync(userId string) (*pb.Cart, error) {
 func (store *RedisCartStore) EmptyCartAsync(userId string) error {
     log.Printf("EmptyCartAsync called with userId=%s\n", userId)
 
-    cart := &pb.Cart{UserId: userId}
-
-    cartData, err := protojson.Marshal(cart)
+    err := store.rdb.Del(store.ctx, userId).Err()
     if err != nil {
-        return status.Errorf(codes.Internal, "error serializing empty cart: %v", err)
-    }
-
-    err = store.rdb.Set(store.ctx, userId, cartData, 0).Err()
-    if err != nil {
-        return status.Errorf(codes.Unavailable, "error storing empty cart in Redis: %v", err)
+        return status.Errorf(codes.Unavailable, "failed to empty cart for user %s: %v", userId, err)
     }
 
     return nil
