@@ -16,13 +16,14 @@ import (
     "google.golang.org/grpc/status"
     "google.golang.org/protobuf/proto"
 
+    "main/cartstore"
     pb "main/genproto"
 )
 
 var (
     runningInLambda = os.Getenv("RUN_LAMBDA") == "1"
 
-    svc = NewCartService(nil) // todo: initialize a CartStore
+    svc = NewCartService(cartstore.NewRedisCartStore(os.Getenv("REDIS_ADDR"), os.Getenv("REDIS_PASS")))
 )
 
 const (

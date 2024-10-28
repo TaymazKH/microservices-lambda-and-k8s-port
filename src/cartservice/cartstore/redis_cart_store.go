@@ -3,10 +3,11 @@ package cartstore
 import (
     "context"
     "errors"
-    "fmt"
     "log"
 
     "github.com/redis/go-redis/v9"
+    "google.golang.org/grpc/codes"
+    "google.golang.org/grpc/status"
     "google.golang.org/protobuf/encoding/protojson"
 
     pb "main/genproto"
@@ -18,6 +19,7 @@ type RedisCartStore struct {
 }
 
 func NewRedisCartStore(redisAddr, redisPassword string) *RedisCartStore {
+    log.Printf("Initializing Redis CartStore with address %s", redisAddr)
     ctx := context.Background()
     rdb := redis.NewClient(&redis.Options{
         Addr:     redisAddr,
@@ -38,11 +40,11 @@ func (store *RedisCartStore) AddItemAsync(userId, productId string, quantity int
             {ProductId: productId, Quantity: quantity},
         }
     } else if err != nil {
-        return fmt.Errorf("can't access cart storage: %v", err)
+        return status.Errorf(codes.Unavailable, "can't access cart storage: %v", err)
     } else {
         err = protojson.Unmarshal([]byte(val), cart)
         if err != nil {
-            return fmt.Errorf("error parsing cart: %v", err)
+            return status.Errorf(codes.Internal, "error parsing cart: %v", err)
         }
 
         itemFound := false
@@ -61,12 +63,12 @@ func (store *RedisCartStore) AddItemAsync(userId, productId string, quantity int
 
     cartData, err := protojson.Marshal(cart)
     if err != nil {
-        return fmt.Errorf("error serializing cart: %v", err)
+        return status.Errorf(codes.Internal, "error serializing cart: %v", err)
     }
 
     err = store.rdb.Set(store.ctx, userId, cartData, 0).Err()
     if err != nil {
-        return fmt.Errorf("error storing cart in Redis: %v", err)
+        return status.Errorf(codes.Unavailable, "error storing cart in Redis: %v", err)
     }
 
     return nil
@@ -79,13 +81,13 @@ func (store *RedisCartStore) GetCartAsync(userId string) (*pb.Cart, error) {
     if errors.Is(err, redis.Nil) {
         return &pb.Cart{UserId: userId}, nil
     } else if err != nil {
-        return nil, fmt.Errorf("can't access cart storage: %v", err)
+        return nil, status.Errorf(codes.Unavailable, "can't access cart storage: %v", err)
     }
 
     cart := &pb.Cart{}
     err = protojson.Unmarshal([]byte(val), cart)
     if err != nil {
-        return nil, fmt.Errorf("error parsing cart: %v", err)
+        return nil, status.Errorf(codes.Internal, "error parsing cart: %v", err)
     }
 
     return cart, nil
@@ -98,12 +100,12 @@ func (store *RedisCartStore) EmptyCartAsync(userId string) error {
 
     cartData, err := protojson.Marshal(cart)
     if err != nil {
-        return fmt.Errorf("error serializing empty cart: %v", err)
+        return status.Errorf(codes.Internal, "error serializing empty cart: %v", err)
     }
 
     err = store.rdb.Set(store.ctx, userId, cartData, 0).Err()
     if err != nil {
-        return fmt.Errorf("error storing empty cart in Redis: %v", err)
+        return status.Errorf(codes.Unavailable, "error storing empty cart in Redis: %v", err)
     }
 
     return nil
