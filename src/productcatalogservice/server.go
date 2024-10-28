@@ -288,7 +288,7 @@ func main() {
         extraLatency = time.Duration(0)
     }
 
-    reloadCatalog = false // disabled reload signaling. todo: perhaps debug and enable later?
+    reloadCatalog = false // todo: disabled reload signaling. perhaps debug and enable later?
     //sigs := make(chan os.Signal, 1)
     //signal.Notify(sigs, syscall.SIGUSR1, syscall.SIGUSR2)
     //go func() {
