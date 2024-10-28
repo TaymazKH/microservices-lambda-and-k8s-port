@@ -14,7 +14,7 @@ func NewCartService(cartStore cartstore.CartStore) *CartService {
 }
 
 func (s *CartService) AddItem(req *pb.AddItemRequest, headers *map[string]string) (*pb.Empty, error) {
-    err := s.cartStore.AddItemAsync(req.UserId, req.Item.ProductId, int(req.Item.Quantity))
+    err := s.cartStore.AddItemAsync(req.UserId, req.Item.ProductId, req.Item.Quantity)
     if err != nil {
         return nil, err
     }
