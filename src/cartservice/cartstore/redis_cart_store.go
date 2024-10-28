@@ -48,9 +48,9 @@ func (store *RedisCartStore) AddItemAsync(userId, productId string, quantity int
         }
 
         itemFound := false
-        for i, item := range cart.Items {
+        for _, item := range cart.Items {
             if item.ProductId == productId {
-                cart.Items[i].Quantity += quantity
+                item.Quantity += quantity
                 itemFound = true
                 break
             }

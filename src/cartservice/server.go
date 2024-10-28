@@ -23,7 +23,7 @@ import (
 var (
     runningInLambda = os.Getenv("RUN_LAMBDA") == "1"
 
-    svc = NewCartService(cartstore.NewRedisCartStore(os.Getenv("REDIS_ADDR"), os.Getenv("REDIS_PASS")))
+    svc *CartService = nil
 )
 
 const (
@@ -249,12 +249,26 @@ func runHTTPServer() error {
 }
 
 func main() {
+    if redisAddr, ok := os.LookupEnv("REDIS_ADDR"); ok {
+        svc = NewCartService(cartstore.NewRedisCartStore(redisAddr, os.Getenv("REDIS_PASS")))
+    }
+
     if runningInLambda {
+        if svc == nil {
+            log.Fatalf("REDIS_ADDR environment variable not set while running in lambda")
+        }
+
         log.Println("Running Lambda handler.")
         if err := runLambda(); err != nil {
             log.Fatalf("Error running lambda handler: %v", err)
         }
+
     } else {
+        if svc == nil {
+            log.Println("REDIS_ADDR environment variable not set")
+            svc = NewCartService(cartstore.NewInMemoryCartStore())
+        }
+
         log.Println("Running HTTP server.")
         if err := runHTTPServer(); err != nil {
             log.Fatalf("HTTP server ended with error: %v", err)
