@@ -1,7 +1,7 @@
 {
   "name": "server",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "server.js",
   "scripts": {
     "genproto": "./genproto.sh"
   },
@@ -10,6 +10,8 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@grpc/grpc-js": "^1.12.2",
+    "base-64": "^1.0.0",
     "protobufjs": "^7.4.0"
   }
 }

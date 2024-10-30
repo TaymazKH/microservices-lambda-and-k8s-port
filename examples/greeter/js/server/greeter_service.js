@@ -1,7 +1,7 @@
 const {HelloRequest, HelloResponse, ByeRequest, ByeResponse} = require('./genproto');
 
 function sayHello(helloRequest, headers) {
-    console.error(`Received: ${helloRequest.getName()}`);
+    console.log(`Received: ${helloRequest.getName()}`);
 
     const helloResp = new HelloResponse();
     helloResp.setText(`Hello ${helloRequest.getName()}`);
@@ -10,7 +10,7 @@ function sayHello(helloRequest, headers) {
 }
 
 function sayBye(byeRequest, headers) {
-    console.error(`Received: ${byeRequest.getName()}`);
+    console.log(`Received: ${byeRequest.getName()}`);
 
     const byeResp = new ByeResponse();
     byeResp.setText(`Bye ${byeRequest.getName()}`);
