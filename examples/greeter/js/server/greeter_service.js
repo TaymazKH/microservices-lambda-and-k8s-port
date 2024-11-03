@@ -1,4 +1,4 @@
-const {HelloRequest, HelloResponse, ByeRequest, ByeResponse} = require('./genproto');
+const {HelloResponse, ByeResponse} = require('./genproto/hello_pb');
 
 function sayHello(helloRequest, headers) {
     console.log(`Received: ${helloRequest.getName()}`);

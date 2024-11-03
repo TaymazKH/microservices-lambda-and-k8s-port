@@ -12,6 +12,7 @@
   "dependencies": {
     "@grpc/grpc-js": "^1.12.2",
     "base-64": "^1.0.0",
+    "google-protobuf": "^3.21.4",
     "protobufjs": "^7.4.0"
   }
 }

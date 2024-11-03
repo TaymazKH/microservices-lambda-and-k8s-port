@@ -1,7 +1,7 @@
 const http = require('http');
 const {status} = require('@grpc/grpc-js');
 
-const {HelloRequest, ByeRequest} = require('./genproto');
+const {HelloRequest, ByeRequest} = require('./genproto/hello_pb');
 const {sayHello, sayBye} = require('./greeter_service');
 
 const runningInLambda = process.env.RUN_LAMBDA === "1";
@@ -65,15 +65,13 @@ function encodeResponse(msg, rpcError) {
     }
 
     const binRespBody = msg.serializeBinary();
-    const headers = {
-        'content-type': 'application/octet-stream',
-        'grpc-status': `${status.OK}`,
-    };
-
     return {
         statusCode: 200,
-        headers: headers,
-        body: runningInLambda ? Buffer.from(binRespBody).toString('base64') : binRespBody,
+        headers: {
+            'content-type': 'application/octet-stream',
+            'grpc-status': `${status.OK}`
+        },
+        body: (runningInLambda ? Buffer.from(binRespBody).toString('base64') : binRespBody),
         isBase64Encoded: runningInLambda
     };
 }
@@ -90,7 +88,8 @@ function generateErrorResponse(code, message) {
     };
 }
 
-function runLambda(event) {
+// IMPORTANT: The Lambda handler needs to be defined with the `async` keyword, or it won't work!
+async function runLambda(event, context) {
     console.log("Handler started.");
     console.log("Event data:", event);
 
@@ -170,3 +169,5 @@ if (require.main === module) {
         runHTTPServer();
     }
 }
+
+module.exports = {runLambda};
