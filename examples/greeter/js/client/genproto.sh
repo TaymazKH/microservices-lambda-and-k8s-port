@@ -7,4 +7,4 @@ mkdir -p $protoname
 
 protoc --js_out=import_style=commonjs,binary:./$protoname \
        -I $protodir \
-       $protodir/hello.proto
+       $protodir/greeter.proto
