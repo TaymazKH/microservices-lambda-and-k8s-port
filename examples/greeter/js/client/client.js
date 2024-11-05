@@ -16,7 +16,7 @@ function determineMessageType(rpcName) {
     }
 }
 
-function sendRequest(addr, serviceName, rpcName, binReq, headers = {}, timeout = DEFAULT_TIMEOUT) {
+async function sendRequest(addr, serviceName, rpcName, binReq, headers = {}, timeout = DEFAULT_TIMEOUT) {
     if (!headers) {
         headers = {};
     }
@@ -25,7 +25,7 @@ function sendRequest(addr, serviceName, rpcName, binReq, headers = {}, timeout =
 
     let response;
     try {
-        response = axios.post(`${addr}/${serviceName}`, binReq, {
+        response = await axios.post(`${addr}/${serviceName}`, binReq, {
             headers: headers,
             timeout: timeout * 1000,
             responseType: 'arraybuffer' // To handle binary data
@@ -73,3 +73,13 @@ function unmarshalResponse(respBody, headers, rpcName) {
         throw {code: grpcStatus, message: respBody};
     }
 }
+
+module.exports = {
+    marshalRequest,
+    unmarshalResponse,
+    sendRequest,
+    DEFAULT_TIMEOUT,
+    GREETER_SERVICE,
+    SAY_HELLO_RPC,
+    SAY_BYE_RPC
+};
