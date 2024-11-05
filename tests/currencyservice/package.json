@@ -1,0 +1,17 @@
+{
+  "name": "currencyservice-test",
+  "version": "1.0.0",
+  "main": "currency_service_test.js",
+  "scripts": {
+    "genproto": "./genproto.sh"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@grpc/grpc-js": "^1.12.2",
+    "axios": "^1.7.7",
+    "google-protobuf": "^3.21.4"
+  }
+}
