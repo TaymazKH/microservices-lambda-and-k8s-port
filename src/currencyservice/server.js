@@ -1,8 +1,19 @@
 const http = require('http');
+const pino = require('pino');
 const {status} = require('@grpc/grpc-js');
 
 const {Empty, CurrencyConversionRequest} = require('./genproto/demo_pb');
 const {getSupportedCurrencies, convert} = require('./currency_service');
+
+const logger = pino({
+    name: 'currencyservice-server',
+    messageKey: 'message',
+    formatters: {
+        level(logLevelString, logLevelNum) {
+            return {severity: logLevelString}
+        }
+    }
+});
 
 const runningInLambda = process.env.RUN_LAMBDA === "1";
 const defaultPort = 8080;
@@ -89,8 +100,8 @@ function generateErrorResponse(code, message) {
 }
 
 async function runLambda(event, context) {
-    console.log("Handler started.");
-    console.log("Event data:", event);
+    logger.info("Handler started.");
+    logger.info("Event data:", event);
 
     const reqData = new RequestData(event);
     let [reqMsg, respData] = decodeRequest(reqData);
@@ -104,8 +115,8 @@ async function runLambda(event, context) {
         }
     }
 
-    console.log("Response:", respData);
-    console.log("Handler finished.");
+    logger.info("Response:", respData);
+    logger.info("Handler finished.");
     return respData;
 }
 
@@ -149,7 +160,7 @@ function runHTTPServer() {
                 res.end(respData.body);
 
             } catch (error) {
-                console.error("Error handling request:", error);
+                logger.error("Error handling request:", error);
                 res.writeHead(500, {'Content-Type': 'text/plain'});
                 res.end("Internal Server Error");
             }
@@ -158,12 +169,12 @@ function runHTTPServer() {
 
     const port = process.env.PORT || defaultPort;
     const server = http.createServer(requestHandler);
-    server.listen(port, () => console.log(`Port: ${port}`));
+    server.listen(port, () => logger.info(`Port: ${port}`));
 }
 
 if (require.main === module) {
     if (runningInLambda) {
-        console.warn("Conflict: RUN_LAMBDA=1 and module loaded as main.");
+        logger.warn("Conflict: RUN_LAMBDA=1 and module loaded as main.");
     } else {
         runHTTPServer();
     }

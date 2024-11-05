@@ -17,7 +17,7 @@ const logger = pino({
  * Lists the supported currencies
  */
 function getSupportedCurrencies(empty, headers) {
-    logger.info('Getting supported currencies...');
+    logger.info("Getting supported currencies...");
 
     const data = require('./data/currency_conversion.json');
 
@@ -55,7 +55,7 @@ function convert(request, headers) {
         response.setNanos(Math.floor(result.nanos));
         response.setCurrencyCode(toCode);
 
-        logger.info(`conversion request successful`);
+        logger.info("conversion request successful");
         return response
     } catch (err) {
         logger.error(`conversion request failed: ${err}`);
