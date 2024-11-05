@@ -18,12 +18,12 @@ const logger = pino({
 const runningInLambda = process.env.RUN_LAMBDA === "1";
 const defaultPort = 8080;
 
-const getSupportedCurrenciesRPC = "get-supported-currencies";
-const convertRPC = "convert";
+const GET_SUPPORTED_CURRENCIES_RPC = "get-supported-currencies";
+const CONVERT_RPC = "convert";
 
 function callRPC(msg, reqData) {
     switch (reqData.headers['rpc-name']) {
-        case getSupportedCurrenciesRPC:
+        case GET_SUPPORTED_CURRENCIES_RPC:
             return getSupportedCurrencies(msg, reqData.headers);
         default:
             return convert(msg, reqData.headers);
@@ -32,9 +32,9 @@ function callRPC(msg, reqData) {
 
 function determineMessageType(rpcName) {
     switch (rpcName) {
-        case getSupportedCurrenciesRPC:
+        case GET_SUPPORTED_CURRENCIES_RPC:
             return Empty;
-        case convertRPC:
+        case CONVERT_RPC:
             return CurrencyConversionRequest;
         default:
             return null;
