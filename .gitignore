@@ -25,6 +25,7 @@ Dockerfile.pip
 genproto/
 node_modules/
 obj/
+package-lock.json
 pkg/
 release/wi-kubernetes-manifests.yaml
 site_packages/
