@@ -7,12 +7,12 @@ const {sayHello, sayBye} = require('./greeter_service');
 const runningInLambda = process.env.RUN_LAMBDA === "1";
 const defaultPort = 8080;
 
-const sayHelloRPC = "say-hello";
-const sayByeRPC = "say-bye";
+const SAY_HELLO_RPC = "say-hello";
+const SAY_BYE_RPC = "say-bye";
 
 function callRPC(msg, reqData) {
     switch (reqData.headers['rpc-name']) {
-        case sayHelloRPC:
+        case SAY_HELLO_RPC:
             return sayHello(msg, reqData.headers);
         default:
             return sayBye(msg, reqData.headers);
@@ -21,9 +21,9 @@ function callRPC(msg, reqData) {
 
 function determineMessageType(rpcName) {
     switch (rpcName) {
-        case sayHelloRPC:
+        case SAY_HELLO_RPC:
             return HelloRequest;
-        case sayByeRPC:
+        case SAY_BYE_RPC:
             return ByeRequest;
         default:
             return null;
