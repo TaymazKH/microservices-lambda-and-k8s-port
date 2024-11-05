@@ -7,19 +7,12 @@ from genproto import demo_pb2 as pb
 
 DEFAULT_TIMEOUT = 10
 
-PRODUCT_CATALOG_SERVICE = "product-catalog-service"
-LIST_PRODUCTS_RPC = "list-products"
-GET_PRODUCT_RPC = "get-product"
-SEARCH_PRODUCTS_RPC = "search-products"
+RECOMMENDATION_SERVICE = "recommendation-service"
+LIST_RECOMMENDATIONS_RPC = "list-recommendations"
 
 
 def determine_message_type(rpc_name):
-    if rpc_name == LIST_PRODUCTS_RPC:
-        return pb.ListProductsResponse()
-    elif rpc_name == GET_PRODUCT_RPC:
-        return pb.Product()
-    else:
-        return pb.SearchProductsResponse()
+    return pb.ListRecommendationsResponse()
 
 
 def send_request(addr, service_name, rpc_name, bin_req, headers=None, timeout=DEFAULT_TIMEOUT):
