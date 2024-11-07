@@ -14,7 +14,7 @@ const logger = pino({
 
 function handleCharge(request, headers) {
     try {
-        logger.info(`PaymentService#Charge invoked with request ${JSON.stringify(request)}`);
+        logger.info(`PaymentService#Charge invoked with request ${request}`);
         const transaction_id = charge(request);
 
         const response = new ChargeResponse();

@@ -1,5 +1,6 @@
 const cardValidator = require('simple-card-validator');
 const {v4: uuidv4} = require('uuid');
+const {status} = require('@grpc/grpc-js');
 const pino = require('pino');
 
 const logger = pino({
@@ -15,7 +16,7 @@ const logger = pino({
 class CreditCardError extends Error {
     constructor(message) {
         super(message);
-        this.code = 400; // Invalid argument error
+        this.code = status.INVALID_ARGUMENT;
     }
 }
 
@@ -63,8 +64,7 @@ module.exports = function charge(request) {
         throw new ExpiredCreditCard(cardNumber.replace('-', ''), month, year);
     }
 
-    logger.info(`Transaction processed: ${cardType} ending ${cardNumber.substr(-4)} \
-    Amount: ${amount.getCurrencyCode()}${amount.getUnits()}.${amount.getNanos()}`);
+    logger.info(`Transaction processed: ${cardType} ending ${cardNumber.substr(-4)} Amount: ${amount.getCurrencyCode()}${amount.getUnits()}.${amount.getNanos()}`);
 
     return uuidv4();
 };
