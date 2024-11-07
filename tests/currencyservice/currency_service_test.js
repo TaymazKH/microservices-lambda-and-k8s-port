@@ -15,7 +15,7 @@ async function testGetSupportedCurrencies() {
             console.error(`GetSupportedCurrencies RPC returned a list of ${l} items instead of 33`)
         }
     } catch (e) {
-        console.error(`Error calling GetSupportedCurrencies RPC: ${e}`);
+        console.error(`Error calling GetSupportedCurrencies RPC: ${JSON.stringify(e)}`);
     }
 }
 
@@ -40,7 +40,7 @@ async function testConvert() {
             console.error(`Convert RPC returned an unexpected response: units=${u}, nanos=${n}, currency_code=${c}`)
         }
     } catch (e) {
-        console.error(`Error calling Convert RPC: ${e}`);
+        console.error(`Error calling Convert RPC: ${JSON.stringify(e)}`);
     }
 }
 

@@ -70,7 +70,7 @@ function unmarshalResponse(respBody, headers, rpcName) {
             throw new Error(`Failed to unmarshal response: ${error.message}`);
         }
     } else {
-        throw {code: grpcStatus, message: respBody};
+        throw {code: grpcStatus, message: String(respBody)};
     }
 }
 
