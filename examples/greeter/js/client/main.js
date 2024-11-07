@@ -13,7 +13,7 @@ async function main() {
         helloResp = await sayHello(helloReq);
         console.log(`Greeting: ${helloResp.getText()}`);
     } catch (e) {
-        console.error(`Error calling SayHello RPC: ${e}`);
+        console.error(`Error calling SayHello RPC: ${JSON.stringify(e)}`);
         return;
     }
 
@@ -25,7 +25,7 @@ async function main() {
         byeResp = await sayBye(byeReq);
         console.log(`Farewell: ${byeResp.getText()}`);
     } catch (e) {
-        console.error(`Error calling SayBye RPC: ${e}`);
+        console.error(`Error calling SayBye RPC: ${JSON.stringify(e)}`);
         return;
     }
 
