@@ -19,7 +19,11 @@ import (
     pb "main/genproto"
 )
 
-var runningInLambda = os.Getenv("RUN_LAMBDA") == "1"
+var (
+    runningInLambda = os.Getenv("RUN_LAMBDA") == "1"
+
+    svc = new(checkoutService)
+)
 
 const (
     defaultPort = "8080"
@@ -29,7 +33,7 @@ const (
 
 // callRPC chooses the correct handler function to call.
 func callRPC(msg *proto.Message, reqData *RequestData) (proto.Message, error) {
-    return placeOrder((*msg).(*pb.PlaceOrderRequest), &reqData.Headers)
+    return svc.PlaceOrder((*msg).(*pb.PlaceOrderRequest), &reqData.Headers)
 }
 
 // determineMessageType chooses the correct message type to initialize.

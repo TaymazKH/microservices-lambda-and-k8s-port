@@ -1,21 +1,6 @@
-// Copyright 2018 Google LLC
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 package main
 
 import (
-    "context"
     "fmt"
     "os"
     "time"
@@ -25,6 +10,7 @@ import (
     "google.golang.org/grpc/codes"
     "google.golang.org/grpc/status"
 
+    stubs "main/client"
     pb "main/genproto"
     "main/money"
 )
@@ -49,42 +35,9 @@ func init() {
     log.Out = os.Stdout
 }
 
-type checkoutService struct {
-    productCatalogSvcAddr string
+type checkoutService struct{}
 
-    cartSvcAddr string
-
-    currencySvcAddr string
-
-    shippingSvcAddr string
-
-    emailSvcAddr string
-
-    paymentSvcAddr string
-}
-
-func main() {
-    svc := new(checkoutService)
-
-    mustMapEnv(&svc.shippingSvcAddr, "SHIPPING_SERVICE_ADDR")
-    mustMapEnv(&svc.productCatalogSvcAddr, "PRODUCT_CATALOG_SERVICE_ADDR")
-    mustMapEnv(&svc.cartSvcAddr, "CART_SERVICE_ADDR")
-    mustMapEnv(&svc.currencySvcAddr, "CURRENCY_SERVICE_ADDR")
-    mustMapEnv(&svc.emailSvcAddr, "EMAIL_SERVICE_ADDR")
-    mustMapEnv(&svc.paymentSvcAddr, "PAYMENT_SERVICE_ADDR")
-
-    log.Infof("service config: %+v", svc)
-}
-
-func mustMapEnv(target *string, envKey string) {
-    v := os.Getenv(envKey)
-    if v == "" {
-        panic(fmt.Sprintf("environment variable %q not set", envKey))
-    }
-    *target = v
-}
-
-func (cs *checkoutService) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (*pb.PlaceOrderResponse, error) {
+func (cs *checkoutService) PlaceOrder(req *pb.PlaceOrderRequest, headers *map[string]string) (*pb.PlaceOrderResponse, error) {
     log.Infof("[PlaceOrder] user_id=%q user_currency=%q", req.UserId, req.UserCurrency)
 
     orderID, err := uuid.NewUUID()
@@ -92,7 +45,7 @@ func (cs *checkoutService) PlaceOrder(ctx context.Context, req *pb.PlaceOrderReq
         return nil, status.Errorf(codes.Internal, "failed to generate order uuid")
     }
 
-    prep, err := cs.prepareOrderItemsAndShippingQuoteFromCart(ctx, req.UserId, req.UserCurrency, req.Address)
+    prep, err := cs.prepareOrderItemsAndShippingQuoteFromCart(req.UserId, req.UserCurrency, req.Address)
     if err != nil {
         return nil, status.Errorf(codes.Internal, err.Error())
     }
@@ -106,18 +59,18 @@ func (cs *checkoutService) PlaceOrder(ctx context.Context, req *pb.PlaceOrderReq
         total = money.Must(money.Sum(total, multPrice))
     }
 
-    txID, err := cs.chargeCard(ctx, &total, req.CreditCard)
+    txID, err := cs.chargeCard(&total, req.CreditCard)
     if err != nil {
         return nil, status.Errorf(codes.Internal, "failed to charge card: %+v", err)
     }
     log.Infof("payment went through (transaction_id: %s)", txID)
 
-    shippingTrackingID, err := cs.shipOrder(ctx, req.Address, prep.cartItems)
+    shippingTrackingID, err := cs.shipOrder(req.Address, prep.cartItems)
     if err != nil {
         return nil, status.Errorf(codes.Unavailable, "shipping error: %+v", err)
     }
 
-    _ = cs.emptyUserCart(ctx, req.UserId)
+    _ = cs.emptyUserCart(req.UserId)
 
     orderResult := &pb.OrderResult{
         OrderId:            orderID.String(),
@@ -127,7 +80,7 @@ func (cs *checkoutService) PlaceOrder(ctx context.Context, req *pb.PlaceOrderReq
         Items:              prep.orderItems,
     }
 
-    if err := cs.sendOrderConfirmation(ctx, req.Email, orderResult); err != nil {
+    if err := cs.sendOrderConfirmation(req.Email, orderResult); err != nil {
         log.Warnf("failed to send order confirmation to %q: %+v", req.Email, err)
     } else {
         log.Infof("order confirmation email sent to %q", req.Email)
@@ -142,21 +95,21 @@ type orderPrep struct {
     shippingCostLocalized *pb.Money
 }
 
-func (cs *checkoutService) prepareOrderItemsAndShippingQuoteFromCart(ctx context.Context, userID, userCurrency string, address *pb.Address) (orderPrep, error) {
+func (cs *checkoutService) prepareOrderItemsAndShippingQuoteFromCart(userID, userCurrency string, address *pb.Address) (orderPrep, error) {
     var out orderPrep
-    cartItems, err := cs.getUserCart(ctx, userID)
+    cartItems, err := cs.getUserCart(userID)
     if err != nil {
         return out, fmt.Errorf("cart failure: %+v", err)
     }
-    orderItems, err := cs.prepOrderItems(ctx, cartItems, userCurrency)
+    orderItems, err := cs.prepOrderItems(cartItems, userCurrency)
     if err != nil {
         return out, fmt.Errorf("failed to prepare order: %+v", err)
     }
-    shippingUSD, err := cs.quoteShipping(ctx, address, cartItems)
+    shippingUSD, err := cs.quoteShipping(address, cartItems)
     if err != nil {
         return out, fmt.Errorf("shipping quote failure: %+v", err)
     }
-    shippingPrice, err := cs.convertCurrency(ctx, shippingUSD, userCurrency)
+    shippingPrice, err := cs.convertCurrency(shippingUSD, userCurrency)
     if err != nil {
         return out, fmt.Errorf("failed to convert shipping cost to currency: %+v", err)
     }
@@ -167,42 +120,38 @@ func (cs *checkoutService) prepareOrderItemsAndShippingQuoteFromCart(ctx context
     return out, nil
 }
 
-func (cs *checkoutService) quoteShipping(ctx context.Context, address *pb.Address, items []*pb.CartItem) (*pb.Money, error) {
-    shippingQuote, err := pb.NewShippingServiceClient(cs.shippingSvcConn).
-        GetQuote(ctx, &pb.GetQuoteRequest{
-            Address: address,
-            Items:   items})
+func (cs *checkoutService) quoteShipping(address *pb.Address, items []*pb.CartItem) (*pb.Money, error) {
+    shippingQuote, err := stubs.GetQuote(&pb.GetQuoteRequest{Address: address, Items: items}, nil)
     if err != nil {
         return nil, fmt.Errorf("failed to get shipping quote: %+v", err)
     }
     return shippingQuote.GetCostUsd(), nil
 }
 
-func (cs *checkoutService) getUserCart(ctx context.Context, userID string) ([]*pb.CartItem, error) {
-    cart, err := pb.NewCartServiceClient(cs.cartSvcConn).GetCart(ctx, &pb.GetCartRequest{UserId: userID})
+func (cs *checkoutService) getUserCart(userID string) ([]*pb.CartItem, error) {
+    cart, err := stubs.GetCart(&pb.GetCartRequest{UserId: userID}, nil)
     if err != nil {
         return nil, fmt.Errorf("failed to get user cart during checkout: %+v", err)
     }
     return cart.GetItems(), nil
 }
 
-func (cs *checkoutService) emptyUserCart(ctx context.Context, userID string) error {
-    if _, err := pb.NewCartServiceClient(cs.cartSvcConn).EmptyCart(ctx, &pb.EmptyCartRequest{UserId: userID}); err != nil {
+func (cs *checkoutService) emptyUserCart(userID string) error {
+    if _, err := stubs.EmptyCart(&pb.EmptyCartRequest{UserId: userID}, nil); err != nil {
         return fmt.Errorf("failed to empty user cart during checkout: %+v", err)
     }
     return nil
 }
 
-func (cs *checkoutService) prepOrderItems(ctx context.Context, items []*pb.CartItem, userCurrency string) ([]*pb.OrderItem, error) {
+func (cs *checkoutService) prepOrderItems(items []*pb.CartItem, userCurrency string) ([]*pb.OrderItem, error) {
     out := make([]*pb.OrderItem, len(items))
-    cl := pb.NewProductCatalogServiceClient(cs.productCatalogSvcConn)
 
     for i, item := range items {
-        product, err := cl.GetProduct(ctx, &pb.GetProductRequest{Id: item.GetProductId()})
+        product, err := stubs.GetProduct(&pb.GetProductRequest{Id: item.GetProductId()}, nil)
         if err != nil {
             return nil, fmt.Errorf("failed to get product #%q", item.GetProductId())
         }
-        price, err := cs.convertCurrency(ctx, product.GetPriceUsd(), userCurrency)
+        price, err := cs.convertCurrency(product.GetPriceUsd(), userCurrency)
         if err != nil {
             return nil, fmt.Errorf("failed to convert price of %q to %s", item.GetProductId(), userCurrency)
         }
@@ -213,37 +162,29 @@ func (cs *checkoutService) prepOrderItems(ctx context.Context, items []*pb.CartI
     return out, nil
 }
 
-func (cs *checkoutService) convertCurrency(ctx context.Context, from *pb.Money, toCurrency string) (*pb.Money, error) {
-    result, err := pb.NewCurrencyServiceClient(cs.currencySvcConn).Convert(context.TODO(), &pb.CurrencyConversionRequest{
-        From:   from,
-        ToCode: toCurrency})
+func (cs *checkoutService) convertCurrency(from *pb.Money, toCurrency string) (*pb.Money, error) {
+    result, err := stubs.Convert(&pb.CurrencyConversionRequest{From: from, ToCode: toCurrency}, nil)
     if err != nil {
         return nil, fmt.Errorf("failed to convert currency: %+v", err)
     }
     return result, err
 }
 
-func (cs *checkoutService) chargeCard(ctx context.Context, amount *pb.Money, paymentInfo *pb.CreditCardInfo) (string, error) {
-    paymentResp, err := pb.NewPaymentServiceClient(cs.paymentSvcConn).Charge(ctx, &pb.ChargeRequest{
-        Amount:     amount,
-        CreditCard: paymentInfo})
+func (cs *checkoutService) chargeCard(amount *pb.Money, paymentInfo *pb.CreditCardInfo) (string, error) {
+    paymentResp, err := stubs.Charge(&pb.ChargeRequest{Amount: amount, CreditCard: paymentInfo}, nil)
     if err != nil {
         return "", fmt.Errorf("could not charge the card: %+v", err)
     }
     return paymentResp.GetTransactionId(), nil
 }
 
-func (cs *checkoutService) sendOrderConfirmation(ctx context.Context, email string, order *pb.OrderResult) error {
-    _, err := pb.NewEmailServiceClient(cs.emailSvcConn).SendOrderConfirmation(ctx, &pb.SendOrderConfirmationRequest{
-        Email: email,
-        Order: order})
+func (cs *checkoutService) sendOrderConfirmation(email string, order *pb.OrderResult) error {
+    _, err := stubs.SendOrderConfirmation(&pb.SendOrderConfirmationRequest{Email: email, Order: order}, nil)
     return err
 }
 
-func (cs *checkoutService) shipOrder(ctx context.Context, address *pb.Address, items []*pb.CartItem) (string, error) {
-    resp, err := pb.NewShippingServiceClient(cs.shippingSvcConn).ShipOrder(ctx, &pb.ShipOrderRequest{
-        Address: address,
-        Items:   items})
+func (cs *checkoutService) shipOrder(address *pb.Address, items []*pb.CartItem) (string, error) {
+    resp, err := stubs.ShipOrder(&pb.ShipOrderRequest{Address: address, Items: items}, nil)
     if err != nil {
         return "", fmt.Errorf("shipment failed: %+v", err)
     }

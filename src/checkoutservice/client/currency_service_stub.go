@@ -43,7 +43,7 @@ func GetSupportedCurrencies(empty *pb.Empty, header *http.Header) (*pb.GetSuppor
 
 // Convert represents the CurrencyService/Convert RPC.
 // context can be sent as custom headers.
-func Convert(request *pb.ChargeRequest, header *http.Header) (*pb.Money, error) {
+func Convert(request *pb.CurrencyConversionRequest, header *http.Header) (*pb.Money, error) {
     binReq, err := marshalRequest(request)
     if err != nil {
         return nil, err
