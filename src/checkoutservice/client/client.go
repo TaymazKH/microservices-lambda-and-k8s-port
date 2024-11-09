@@ -29,22 +29,24 @@ func determineMessageType(rpcName string) proto.Message {
         msg = &pb.Product{}
     case searchProductsRPC:
         msg = &pb.SearchProductsResponse{}
-    case addItemRPC:
-        msg = &pb.Empty{}
     case getCartRPC:
         msg = &pb.Cart{}
-    case emptyCartRPC:
-        msg = &pb.Empty{}
     case getQuoteRPC:
         msg = &pb.GetQuoteResponse{}
     case shipOrderRPC:
         msg = &pb.ShipOrderResponse{}
-    case getSupportedCurrenciesRPC:
-        msg = &pb.Empty{}
     case convertRPC:
         msg = &pb.Money{}
     case chargeRPC:
         msg = &pb.ChargeResponse{}
+    default:
+        /*
+           CartService/AddItem
+           CartService/EmptyCart
+           CurrencyService/GetSupportedCurrencies
+           EmailService/SendOrderConfirmation
+        */
+        msg = &pb.Empty{}
     }
     return msg
 }
