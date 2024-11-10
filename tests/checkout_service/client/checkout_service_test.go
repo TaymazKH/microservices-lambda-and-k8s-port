@@ -3,12 +3,14 @@ package client
 import (
     "testing"
 
+    "google.golang.org/protobuf/encoding/protojson"
+
     pb "main/genproto"
 )
 
 func TestPlaceOrder(t *testing.T) {
     if err := populateCart(); err != nil {
-        t.Fatalf("%v", err)
+        t.Fatalf("Populating cart failed: %v", err)
     }
 
     request := &pb.PlaceOrderRequest{
@@ -35,12 +37,17 @@ func TestPlaceOrder(t *testing.T) {
         t.Fatalf("PlaceOrder failed: %v", err)
     }
 
-    t.Logf("PlaceOrder response: %v", response)
+    jsonResponse, err := protojson.MarshalOptions{Multiline: true, Indent: "  "}.Marshal(response)
+    if err != nil {
+        t.Fatalf("Marshaling response failed: %v", err)
+    }
+
+    t.Logf("PlaceOrder response:\n%v", string(jsonResponse))
 }
 
 func populateCart() error {
     _, err := AddItem(
-        &pb.AddItemRequest{UserId: "user0", Item: &pb.CartItem{ProductId: "product0", Quantity: 2}},
+        &pb.AddItemRequest{UserId: "user0", Item: &pb.CartItem{ProductId: "OLJCESPC7Z", Quantity: 2}}, // sunglasses
         nil,
     )
     return err
