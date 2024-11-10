@@ -1,6 +1,7 @@
 package client
 
 import (
+    "fmt"
     "testing"
 
     "google.golang.org/protobuf/encoding/protojson"
@@ -9,7 +10,7 @@ import (
 )
 
 func TestPlaceOrder(t *testing.T) {
-    if err := populateCart(); err != nil {
+    if err := createFakeCart(); err != nil {
         t.Fatalf("Populating cart failed: %v", err)
     }
 
@@ -45,10 +46,22 @@ func TestPlaceOrder(t *testing.T) {
     t.Logf("PlaceOrder response:\n%v", string(jsonResponse))
 }
 
-func populateCart() error {
-    _, err := AddItem(
+func createFakeCart() error {
+    _, err := EmptyCart(
+        &pb.EmptyCartRequest{UserId: "user0"},
+        nil,
+    )
+    if err != nil {
+        return fmt.Errorf("empty cart failed: %v", err)
+    }
+
+    _, err = AddItem(
         &pb.AddItemRequest{UserId: "user0", Item: &pb.CartItem{ProductId: "OLJCESPC7Z", Quantity: 2}}, // sunglasses
         nil,
     )
-    return err
+    if err != nil {
+        return fmt.Errorf("add item failed: %v", err)
+    }
+
+    return nil
 }
