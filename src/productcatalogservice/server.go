@@ -171,6 +171,7 @@ func generateErrorResponse(code codes.Code, message string) *ResponseData {
             "content-type": "text/plain",
             "grpc-status":  strconv.Itoa(int(code))},
         Body:            message,
+        BinBody:         []byte(message),
         IsBase64Encoded: false,
     }
 }
