@@ -1,4 +1,4 @@
-package main
+package client
 
 import (
     "bytes"
@@ -21,7 +21,18 @@ const (
 
 // determineMessageType chooses the correct message type to initialize.
 func determineMessageType(rpcName string) proto.Message {
-    return &pb.PlaceOrderResponse{}
+    var msg proto.Message
+    switch rpcName {
+    case addItemRPC:
+        msg = &pb.Empty{}
+    case getCartRPC:
+        msg = &pb.Cart{}
+    case emptyCartRPC:
+        msg = &pb.Empty{}
+    default:
+        msg = &pb.PlaceOrderResponse{}
+    }
+    return msg
 }
 
 // sendRequest sends an HTTP POST request with the given byte array and returns the response body as a byte array.
