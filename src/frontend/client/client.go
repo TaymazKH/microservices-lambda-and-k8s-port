@@ -43,6 +43,8 @@ func determineMessageType(rpcName string) proto.Message {
         msg = &pb.AdResponse{}
     case getSupportedCurrenciesRPC:
         msg = &pb.GetSupportedCurrenciesResponse{}
+    case placeOrderRPC:
+        msg = &pb.PlaceOrderResponse{}
     default:
         /*
            CartService/AddItem
