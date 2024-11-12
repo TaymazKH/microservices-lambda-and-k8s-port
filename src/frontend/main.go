@@ -40,27 +40,6 @@ var (
 type ctxKeySessionID struct{}
 
 type frontendServer struct {
-    productCatalogSvcAddr string
-    productCatalogSvcConn *grpc.ClientConn
-
-    currencySvcAddr string
-    currencySvcConn *grpc.ClientConn
-
-    cartSvcAddr string
-    cartSvcConn *grpc.ClientConn
-
-    recommendationSvcAddr string
-    recommendationSvcConn *grpc.ClientConn
-
-    checkoutSvcAddr string
-    checkoutSvcConn *grpc.ClientConn
-
-    shippingSvcAddr string
-    shippingSvcConn *grpc.ClientConn
-
-    adSvcAddr string
-    adSvcConn *grpc.ClientConn
-
     collectorAddr string
     collectorConn *grpc.ClientConn
 

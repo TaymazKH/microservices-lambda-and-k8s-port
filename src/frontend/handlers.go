@@ -18,6 +18,7 @@ import (
     "github.com/pkg/errors"
     "github.com/sirupsen/logrus"
 
+    stubs "main/client"
     pb "main/genproto"
     "main/money"
     "main/validator"
@@ -337,8 +338,8 @@ func (fe *frontendServer) placeOrderHandler(w http.ResponseWriter, r *http.Reque
         return
     }
 
-    order, err := pb.NewCheckoutServiceClient(fe.checkoutSvcConn).
-        PlaceOrder(r.Context(), &pb.PlaceOrderRequest{
+    order, err := stubs.
+        PlaceOrder(&pb.PlaceOrderRequest{
             Email: payload.Email,
             CreditCard: &pb.CreditCardInfo{
                 CreditCardNumber:          payload.CcNumber,
@@ -353,7 +354,7 @@ func (fe *frontendServer) placeOrderHandler(w http.ResponseWriter, r *http.Reque
                 State:         payload.State,
                 ZipCode:       int32(payload.ZipCode),
                 Country:       payload.Country},
-        })
+        }, nil) // todo: perhaps use r.Context() ?
     if err != nil {
         renderHTTPError(log, r, w, errors.Wrap(err, "failed to complete the order"), http.StatusInternalServerError)
         return
