@@ -21,18 +21,23 @@ import (
 
 var (
     runningInLambda = os.Getenv("RUN_LAMBDA") == "1"
+    baseUrl         = os.Getenv("BASE_URL") // must begin with a slash if non-empty
     router          *mux.Router
 )
 
 const (
     defaultPort = "8080"
-    baseUrl     = ""
 )
 
 // init initializes the router.
 func init() {
+    homeUrl := "/"
+    if baseUrl != "" {
+        homeUrl = baseUrl
+    }
+
     router = mux.NewRouter()
-    router.HandleFunc(baseUrl+"/", homeHandler).Methods(http.MethodGet, http.MethodHead)
+    router.HandleFunc(homeUrl, homeHandler).Methods(http.MethodGet, http.MethodHead)
     router.HandleFunc(baseUrl+"/about", aboutHandler).Methods(http.MethodGet, http.MethodHead)
 }
 
