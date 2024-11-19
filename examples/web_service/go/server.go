@@ -61,6 +61,40 @@ type ResponseData struct {
     Cookies         []string          `json:"cookies"`
 }
 
+// nonSplitHeaders is the set of header keys that should not be split based on a comma.
+var nonSplitHeaders = map[string]bool{
+    // Authentication
+    "authorization":       true,
+    "proxy-authorization": true,
+
+    // Cookies
+    "cookie":     true,
+    "set-cookie": true,
+
+    // User Agent
+    "user-agent": true,
+    "referer":    true, // May contain query strings with commas
+
+    // Caching
+    "if-match":            true,
+    "if-none-match":       true,
+    "if-unmodified-since": true,
+    "if-modified-since":   true,
+    "last-modified":       true,
+
+    // Content Headers
+    "content-disposition": true,
+    "content-type":        true,
+
+    // Range Requests
+    "range": true,
+
+    // Miscellaneous
+    "location":        true,
+    "link":            true, // May contain URIs with commas
+    "x-forwarded-for": true, // Often contains IP lists with commas
+}
+
 // reconstructHTTPRequest reconstructs the incoming HTTP request.
 func reconstructHTTPRequest(reqData *RequestData) (*http.Request, error) {
     rawURL := reqData.RawPath
@@ -88,9 +122,14 @@ func reconstructHTTPRequest(reqData *RequestData) (*http.Request, error) {
         return nil, err
     }
 
+    // fixme: perhaps there's a better way to handle headers?
     for key, value := range reqData.Headers {
-        for _, s := range strings.Split(value, ",") {
-            req.Header.Add(key, strings.TrimSpace(s)) // fixme
+        if nonSplitHeaders[strings.ToLower(key)] {
+            req.Header.Add(key, strings.TrimSpace(value))
+        } else {
+            for _, s := range strings.Split(value, ",") {
+                req.Header.Add(key, strings.TrimSpace(s))
+            }
         }
     }
 
