@@ -12,7 +12,9 @@ import (
     "net/http/httptest"
     "net/url"
     "os"
+    "strconv"
     "strings"
+    "time"
 
     "github.com/gorilla/mux"
 )
@@ -92,8 +94,59 @@ func reconstructHTTPRequest(reqData *RequestData) (*http.Request, error) {
         }
     }
 
-    for _, cookie := range reqData.Cookies {
-        req.AddCookie(&http.Cookie{Name: cookie}) // fixme
+    for _, cookieStr := range reqData.Cookies {
+        parts := strings.Split("; ", cookieStr)
+        if len(parts) == 0 {
+            continue
+        }
+
+        nameValue := strings.SplitN(parts[0], "=", 2)
+        if len(nameValue) != 2 {
+            continue
+        }
+        cookie := &http.Cookie{
+            Name:  nameValue[0],
+            Value: nameValue[1],
+        }
+
+        for _, attr := range parts[1:] {
+            attrParts := strings.SplitN(attr, "=", 2)
+            key := strings.ToLower(strings.TrimSpace(attrParts[0]))
+            var value string
+            if len(attrParts) > 1 {
+                value = strings.TrimSpace(attrParts[1])
+            }
+
+            switch key {
+            case "path":
+                cookie.Path = value
+            case "domain":
+                cookie.Domain = value
+            case "expires":
+                if t, err := time.Parse(time.RFC1123, value); err == nil {
+                    cookie.Expires = t
+                }
+            case "max-age":
+                if maxAge, err := strconv.Atoi(value); err == nil {
+                    cookie.MaxAge = maxAge
+                }
+            case "secure":
+                cookie.Secure = true
+            case "httponly":
+                cookie.HttpOnly = true
+            case "samesite":
+                switch strings.ToLower(value) {
+                case "lax":
+                    cookie.SameSite = http.SameSiteLaxMode
+                case "strict":
+                    cookie.SameSite = http.SameSiteStrictMode
+                case "none":
+                    cookie.SameSite = http.SameSiteNoneMode
+                }
+            }
+        }
+
+        req.AddCookie(cookie)
     }
 
     return req, nil
