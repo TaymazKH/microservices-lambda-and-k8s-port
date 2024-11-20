@@ -22,7 +22,7 @@ import (
 var (
     runningInLambda = os.Getenv("RUN_LAMBDA") == "1"
     baseUrl         = os.Getenv("BASE_URL") // must begin with a slash if non-empty
-    router          *mux.Router
+    router          http.Handler
 )
 
 const (
@@ -36,9 +36,10 @@ func init() {
         homeUrl = baseUrl
     }
 
-    router = mux.NewRouter()
-    router.HandleFunc(homeUrl, homeHandler).Methods(http.MethodGet, http.MethodHead)
-    router.HandleFunc(baseUrl+"/about", aboutHandler).Methods(http.MethodGet, http.MethodHead)
+    r := mux.NewRouter()
+    r.HandleFunc(homeUrl, homeHandler).Methods(http.MethodGet, http.MethodHead)
+    r.HandleFunc(baseUrl+"/about", aboutHandler).Methods(http.MethodGet, http.MethodHead)
+    router = r
 }
 
 // RequestData represents the structure of the incoming JSON string.
