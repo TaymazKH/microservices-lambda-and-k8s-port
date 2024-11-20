@@ -22,14 +22,14 @@ import (
 var (
     runningInLambda = os.Getenv("RUN_LAMBDA") == "1"
     baseUrl         = os.Getenv("BASE_URL") // must begin with a slash if non-empty
-    router          http.Handler
+    httpHandler     http.Handler
 )
 
 const (
     defaultPort = "8080"
 )
 
-// init initializes the router.
+// init initializes the httpHandler.
 func init() {
     homeUrl := "/"
     if baseUrl != "" {
@@ -39,7 +39,7 @@ func init() {
     r := mux.NewRouter()
     r.HandleFunc(homeUrl, homeHandler).Methods(http.MethodGet, http.MethodHead)
     r.HandleFunc(baseUrl+"/about", aboutHandler).Methods(http.MethodGet, http.MethodHead)
-    router = r
+    httpHandler = r
 }
 
 // RequestData represents the structure of the incoming JSON string.
@@ -243,7 +243,7 @@ func runLambda() error {
     }
 
     respWriter := httptest.NewRecorder()
-    router.ServeHTTP(respWriter, httpReq)
+    httpHandler.ServeHTTP(respWriter, httpReq)
     httpResp := respWriter.Result()
 
     respData, err := convertToResponseData(httpResp)
@@ -267,7 +267,7 @@ func runHTTPServer() error {
     }
     log.Println("Port:", port)
 
-    return http.ListenAndServe(":"+port, router)
+    return http.ListenAndServe(":"+port, httpHandler)
 }
 
 func main() {
