@@ -90,7 +90,7 @@ type RequestData struct {
     Body            string            `json:"body"`
     Headers         map[string]string `json:"headers"`
     IsBase64Encoded bool              `json:"isBase64Encoded"`
-    BinBody         []byte
+    BinBody         []byte            `json:"-"`
 }
 
 // ResponseData represents the structure of the outgoing JSON string or HTTP request.
@@ -99,7 +99,7 @@ type ResponseData struct {
     Headers         map[string]string `json:"headers"`
     Body            string            `json:"body"`
     IsBase64Encoded bool              `json:"isBase64Encoded"`
-    BinBody         []byte
+    BinBody         []byte            `json:"-"`
 }
 
 // decodeRequest decodes the incoming RequestData into a protobuf message.
