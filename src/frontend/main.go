@@ -17,7 +17,6 @@ import (
 
     "github.com/gorilla/mux"
     "github.com/sirupsen/logrus"
-    "google.golang.org/grpc"
 )
 
 const (
@@ -48,9 +47,6 @@ var (
 type ctxKeySessionID struct{}
 
 type frontendServer struct {
-    collectorAddr string
-    collectorConn *grpc.ClientConn
-
     shoppingAssistantSvcAddr string
 }
 
@@ -110,7 +106,6 @@ type RequestData struct {
             Method string `json:"method"`
         } `json:"http"`
     } `json:"requestContext"`
-    BinBody []byte
 }
 
 // ResponseData represents the structure of the outgoing JSON string.

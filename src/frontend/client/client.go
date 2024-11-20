@@ -16,7 +16,7 @@ import (
 )
 
 const (
-    defaultTimeout = 10
+    defaultTimeout = 20
 )
 
 // determineMessageType chooses the correct message type to initialize.
@@ -38,7 +38,7 @@ func determineMessageType(rpcName string) proto.Message {
     case convertRPC:
         msg = &pb.Money{}
     case listRecommendationsRPC:
-        msg = &pb.ChargeResponse{}
+        msg = &pb.ListRecommendationsResponse{}
     case getAdsRPC:
         msg = &pb.AdResponse{}
     case getSupportedCurrenciesRPC:
