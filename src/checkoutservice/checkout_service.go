@@ -32,7 +32,7 @@ func init() {
         },
         TimestampFormat: time.RFC3339Nano,
     }
-    log.Out = os.Stderr
+    log.Out = os.Stdout
 }
 
 type checkoutService struct{}

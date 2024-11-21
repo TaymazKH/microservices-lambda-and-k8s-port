@@ -3,6 +3,7 @@ module main
 go 1.22.3
 
 require (
+	github.com/aws/aws-lambda-go v1.47.0
 	google.golang.org/grpc v1.66.0
 	google.golang.org/protobuf v1.34.2
 )

@@ -5,6 +5,7 @@ go 1.22.3
 require (
 	cloud.google.com/go/alloydbconn v1.12.0
 	cloud.google.com/go/secretmanager v1.14.0
+	github.com/aws/aws-lambda-go v1.47.0
 	github.com/golang/protobuf v1.5.4
 	github.com/jackc/pgx/v5 v5.7.0
 	github.com/sirupsen/logrus v1.9.3

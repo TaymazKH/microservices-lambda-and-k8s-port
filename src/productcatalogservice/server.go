@@ -1,9 +1,7 @@
 package main
 
 import (
-    "bufio"
     "encoding/base64"
-    "encoding/json"
     "flag"
     "fmt"
     "io"
@@ -17,6 +15,7 @@ import (
     //"os/signal"
     //"syscall"
 
+    "github.com/aws/aws-lambda-go/lambda"
     "github.com/sirupsen/logrus"
     "google.golang.org/grpc/codes"
     "google.golang.org/grpc/status"
@@ -55,7 +54,7 @@ func init() {
         },
         TimestampFormat: time.RFC3339Nano,
     }
-    log.Out = os.Stderr
+    log.Out = os.Stdout
     catalogMutex = &sync.Mutex{}
 }
 
@@ -176,47 +175,31 @@ func generateErrorResponse(code codes.Code, message string) *ResponseData {
     }
 }
 
-func runLambda() error {
-    reader := bufio.NewReader(os.Stdin)
-    request, err := reader.ReadString('\n')
-    if err != nil {
-        return fmt.Errorf("failed to read from stdin: %w", err)
-    }
-    request = strings.TrimSpace(request)
+func runLambda(reqData *RequestData) (*ResponseData, error) {
+    log.Infof("Handler started. Event data: %v", reqData)
 
-    var reqData *RequestData
-    if err := json.Unmarshal([]byte(request), &reqData); err != nil {
-        return fmt.Errorf("failed to parse request JSON: %w", err)
-    }
-
-    var respData *ResponseData
     reqMsg, respData, err := decodeRequest(reqData)
     if err != nil {
-        return fmt.Errorf("error decoding request: %w", err)
+        return nil, fmt.Errorf("error decoding request: %w", err)
 
     } else if respData == nil {
         respMsg, rpcError := callRPC(reqMsg, reqData)
 
         respData, err = encodeResponse(&respMsg, rpcError)
         if err != nil {
-            return fmt.Errorf("error encoding response: %w", err)
+            return nil, fmt.Errorf("error encoding response: %w", err)
         }
     }
 
-    jsonResponse, err := json.Marshal(respData)
-    if err != nil {
-        return fmt.Errorf("failed to marshal JSON response: %w", err)
-    }
-
-    fmt.Println(string(jsonResponse))
-    return nil
+    log.Infof("Handler finished. Response: %v", respData)
+    return respData, nil
 }
 
 func runHTTPServer() error {
     httpHandler := func(w http.ResponseWriter, r *http.Request) {
         reqBody, err := io.ReadAll(r.Body)
         if err != nil {
-            log.Printf("Error reading request body: %v", err)
+            log.Infof("Error reading request body: %v", err)
             http.Error(w, "failed to read request body", http.StatusInternalServerError)
             return
         }
@@ -240,7 +223,7 @@ func runHTTPServer() error {
         var respData *ResponseData
         reqMsg, respData, err := decodeRequest(reqData)
         if err != nil {
-            log.Printf("Error decoding request: %v", err)
+            log.Infof("Error decoding request: %v", err)
             http.Error(w, "failed to decode request", http.StatusInternalServerError)
             return
 
@@ -249,7 +232,7 @@ func runHTTPServer() error {
 
             respData, err = encodeResponse(&respMsg, rpcError)
             if err != nil {
-                log.Printf("Error encoding response: %v", err)
+                log.Infof("Error encoding response: %v", err)
                 http.Error(w, "failed to encode response", http.StatusInternalServerError)
                 return
             }
@@ -260,7 +243,7 @@ func runHTTPServer() error {
         }
         w.WriteHeader(respData.StatusCode)
         if _, err := w.Write(respData.BinBody); err != nil {
-            log.Printf("Error writing response: %v", err)
+            log.Infof("Error writing response: %v", err)
         }
     }
 
@@ -268,10 +251,11 @@ func runHTTPServer() error {
     if p, ok := os.LookupEnv("PORT"); ok {
         port = p
     }
-    log.Println("Port:", port)
+    addr := os.Getenv("LISTEN_ADDR")
 
+    log.Info("Starting HTTP server on " + addr + ":" + port)
     http.HandleFunc("/", httpHandler)
-    return http.ListenAndServe(":"+port, nil)
+    return http.ListenAndServe(addr+":"+port, nil)
 }
 
 func main() {
@@ -307,12 +291,8 @@ func main() {
     //}()
 
     if runningInLambda {
-        log.Println("Running Lambda handler.")
-        if err := runLambda(); err != nil {
-            log.Fatalf("Error running lambda handler: %v", err)
-        }
+        lambda.Start(runLambda)
     } else {
-        log.Println("Running HTTP server.")
         if err := runHTTPServer(); err != nil {
             log.Fatalf("HTTP server ended with error: %v", err)
         }

@@ -2,5 +2,5 @@
 
 GOOS=linux
 GOARCH=amd64
-go build -o service .
-zip -r deployment.zip bootstrap handler.sh products.json service
+go build -o bootstrap .
+zip -r deployment.zip bootstrap products.json
