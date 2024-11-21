@@ -19,6 +19,7 @@
 *.tfvars
 *~
 bin/
+bootstrap
 build/
 deployment.zip
 Dockerfile.pip
