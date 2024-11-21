@@ -1,10 +1,8 @@
 package main
 
 import (
-    "bufio"
     "bytes"
     "encoding/base64"
-    "encoding/json"
     "fmt"
     "io"
     "log"
@@ -16,6 +14,7 @@ import (
     "strings"
     "time"
 
+    "github.com/aws/aws-lambda-go/lambda"
     "github.com/gorilla/mux"
 )
 
@@ -224,22 +223,12 @@ func convertToResponseData(resp *http.Response) (*ResponseData, error) {
     }, nil
 }
 
-func runLambda() error {
-    reader := bufio.NewReader(os.Stdin)
-    request, err := reader.ReadString('\n')
-    if err != nil {
-        return fmt.Errorf("failed to read from stdin: %w", err)
-    }
-    request = strings.TrimSpace(request)
-
-    var reqData *RequestData
-    if err := json.Unmarshal([]byte(request), &reqData); err != nil {
-        return fmt.Errorf("failed to parse request JSON: %w", err)
-    }
+func runLambda(reqData *RequestData) (*ResponseData, error) {
+    log.Printf("Handler started. Event data: %v", reqData)
 
     httpReq, err := reconstructHTTPRequest(reqData)
     if err != nil {
-        return fmt.Errorf("failed to reconstruct HTTP request: %w", err)
+        return nil, fmt.Errorf("failed to reconstruct HTTP request: %w", err)
     }
 
     respWriter := httptest.NewRecorder()
@@ -248,16 +237,11 @@ func runLambda() error {
 
     respData, err := convertToResponseData(httpResp)
     if err != nil {
-        return fmt.Errorf("failed to convert response data: %w", err)
+        return nil, fmt.Errorf("failed to convert response data: %w", err)
     }
 
-    jsonResponse, err := json.Marshal(respData)
-    if err != nil {
-        return fmt.Errorf("failed to marshal JSON response: %w", err)
-    }
-
-    fmt.Println(string(jsonResponse))
-    return nil
+    log.Printf("Handler finished. Response: %v", respData)
+    return respData, nil
 }
 
 func runHTTPServer() error {
@@ -265,20 +249,16 @@ func runHTTPServer() error {
     if p, ok := os.LookupEnv("PORT"); ok {
         port = p
     }
-    log.Println("Port:", port)
+    addr := os.Getenv("LISTEN_ADDR")
 
-    return http.ListenAndServe(":"+port, httpHandler)
+    log.Println("Starting HTTP server on " + addr + ":" + port)
+    return http.ListenAndServe(addr+":"+port, httpHandler)
 }
 
 func main() {
-    httptest.NewRecorder()
     if runningInLambda {
-        log.Println("Running Lambda handler.")
-        if err := runLambda(); err != nil {
-            log.Fatalf("Error running lambda handler: %v", err)
-        }
+        lambda.Start(runLambda)
     } else {
-        log.Println("Running HTTP server.")
         if err := runHTTPServer(); err != nil {
             log.Fatalf("HTTP server ended with error: %v", err)
         }

@@ -222,7 +222,7 @@ func runHTTPServer() error {
 
     log.Println("Starting HTTP server on " + addr + ":" + port)
     http.HandleFunc("/", httpHandler)
-    return http.ListenAndServe(":"+port, nil)
+    return http.ListenAndServe(addr+":"+port, nil)
 }
 
 func main() {
