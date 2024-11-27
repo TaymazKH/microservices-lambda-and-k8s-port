@@ -222,7 +222,6 @@ func (fe *frontendServer) addToCartHandler(w http.ResponseWriter, r *http.Reques
         return
     }
     w.Header().Set("location", baseUrl+"/cart")
-    // todo: content type?
     w.WriteHeader(http.StatusFound)
 }
 
@@ -235,7 +234,6 @@ func (fe *frontendServer) emptyCartHandler(w http.ResponseWriter, r *http.Reques
         return
     }
     w.Header().Set("location", baseUrl+"/")
-    // todo: content type?
     w.WriteHeader(http.StatusFound)
 }
 
@@ -418,7 +416,6 @@ func (fe *frontendServer) logoutHandler(w http.ResponseWriter, r *http.Request) 
         http.SetCookie(w, c)
     }
     w.Header().Set("Location", baseUrl+"/")
-    // todo: content type?
     w.WriteHeader(http.StatusFound)
 }
 
@@ -439,9 +436,9 @@ func (fe *frontendServer) getProductByID(w http.ResponseWriter, r *http.Request)
         return
     }
 
-    w.Write(jsonData)
-    // todo: content type?
+    w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(http.StatusOK)
+    w.Write(jsonData)
 }
 
 func (fe *frontendServer) chatBotHandler(w http.ResponseWriter, r *http.Request) {
@@ -486,11 +483,11 @@ func (fe *frontendServer) chatBotHandler(w http.ResponseWriter, r *http.Request)
         return
     }
 
+    w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(http.StatusOK)
+
     // respond with the same message
     json.NewEncoder(w).Encode(Response{Message: response.Content})
-
-    // todo: content type?
-    w.WriteHeader(http.StatusOK)
 }
 
 func (fe *frontendServer) setCurrencyHandler(w http.ResponseWriter, r *http.Request) {
@@ -516,7 +513,6 @@ func (fe *frontendServer) setCurrencyHandler(w http.ResponseWriter, r *http.Requ
         referer = baseUrl + "/"
     }
     w.Header().Set("Location", referer)
-    // todo: content type?
     w.WriteHeader(http.StatusFound)
 }
 
