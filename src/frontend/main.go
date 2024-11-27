@@ -253,6 +253,8 @@ func convertToResponseData(resp *http.Response) (*ResponseData, error) {
     }
     defer resp.Body.Close()
 
+    //resp.Header.Set("Content-Type", http.DetectContentType(body))
+
     headers := make(map[string]string)
     var cookies []string
     for key, values := range resp.Header {
