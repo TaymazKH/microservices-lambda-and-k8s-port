@@ -1,10 +1,8 @@
 package main
 
 import (
-    "bufio"
     "bytes"
     "encoding/base64"
-    "encoding/json"
     "fmt"
     "io"
     "net/http"
@@ -15,6 +13,7 @@ import (
     "strings"
     "time"
 
+    "github.com/aws/aws-lambda-go/lambda"
     "github.com/gorilla/mux"
     "github.com/sirupsen/logrus"
 )
@@ -61,7 +60,7 @@ func init() {
         },
         TimestampFormat: time.RFC3339Nano,
     }
-    log.Out = os.Stderr
+    log.Out = os.Stdout
 
     svc := new(frontendServer)
 
@@ -95,26 +94,26 @@ func init() {
 
 // RequestData represents the structure of the incoming JSON string.
 type RequestData struct {
-    RawPath         string            `json:"rawPath"`
-    RawQueryString  string            `json:"rawQueryString"`
-    Body            string            `json:"body"`
-    Headers         map[string]string `json:"headers"`
-    Cookies         []string          `json:"cookies"`
-    IsBase64Encoded bool              `json:"isBase64Encoded"`
-    RequestContext  struct {
+    RequestContext struct {
         HTTP struct {
             Method string `json:"method"`
         } `json:"http"`
     } `json:"requestContext"`
+    RawPath         string            `json:"rawPath"`
+    RawQueryString  string            `json:"rawQueryString"`
+    Headers         map[string]string `json:"headers"`
+    Cookies         []string          `json:"cookies"`
+    IsBase64Encoded bool              `json:"isBase64Encoded"`
+    Body            string            `json:"body"`
 }
 
 // ResponseData represents the structure of the outgoing JSON string.
 type ResponseData struct {
     StatusCode      int               `json:"statusCode"`
     Headers         map[string]string `json:"headers"`
-    Body            string            `json:"body"`
-    IsBase64Encoded bool              `json:"isBase64Encoded"`
     Cookies         []string          `json:"cookies"`
+    IsBase64Encoded bool              `json:"isBase64Encoded"`
+    Body            string            `json:"body"`
 }
 
 // nonSplitHeaders is the set of header keys that should not be split based on a comma.
@@ -178,7 +177,6 @@ func reconstructHTTPRequest(reqData *RequestData) (*http.Request, error) {
         return nil, err
     }
 
-    // fixme: perhaps there's a better way to handle headers?
     for key, value := range reqData.Headers {
         if nonSplitHeaders[strings.ToLower(key)] {
             req.Header.Add(key, strings.TrimSpace(value))
@@ -190,7 +188,7 @@ func reconstructHTTPRequest(reqData *RequestData) (*http.Request, error) {
     }
 
     for _, cookieStr := range reqData.Cookies {
-        parts := strings.Split("; ", cookieStr)
+        parts := strings.Split(cookieStr, "; ")
         if len(parts) == 0 {
             continue
         }
@@ -255,6 +253,8 @@ func convertToResponseData(resp *http.Response) (*ResponseData, error) {
     }
     defer resp.Body.Close()
 
+    //resp.Header.Set("Content-Type", http.DetectContentType(body))
+
     headers := make(map[string]string)
     var cookies []string
     for key, values := range resp.Header {
@@ -274,22 +274,12 @@ func convertToResponseData(resp *http.Response) (*ResponseData, error) {
     }, nil
 }
 
-func runLambda() error {
-    reader := bufio.NewReader(os.Stdin)
-    request, err := reader.ReadString('\n')
-    if err != nil {
-        return fmt.Errorf("failed to read from stdin: %w", err)
-    }
-    request = strings.TrimSpace(request)
-
-    var reqData *RequestData
-    if err := json.Unmarshal([]byte(request), &reqData); err != nil {
-        return fmt.Errorf("failed to parse request JSON: %w", err)
-    }
+func runLambda(reqData *RequestData) (*ResponseData, error) {
+    log.Infof("Handler started. Event data: %v", reqData)
 
     httpReq, err := reconstructHTTPRequest(reqData)
     if err != nil {
-        return fmt.Errorf("failed to reconstruct HTTP request: %w", err)
+        return nil, fmt.Errorf("failed to reconstruct HTTP request: %w", err)
     }
 
     respWriter := httptest.NewRecorder()
@@ -298,16 +288,11 @@ func runLambda() error {
 
     respData, err := convertToResponseData(httpResp)
     if err != nil {
-        return fmt.Errorf("failed to convert response data: %w", err)
+        return nil, fmt.Errorf("failed to convert response data: %w", err)
     }
 
-    jsonResponse, err := json.Marshal(respData)
-    if err != nil {
-        return fmt.Errorf("failed to marshal JSON response: %w", err)
-    }
-
-    fmt.Println(string(jsonResponse))
-    return nil
+    log.Infof("Handler finished. Response: %v", respData)
+    return respData, nil
 }
 
 func runHTTPServer() error {
@@ -317,19 +302,14 @@ func runHTTPServer() error {
     }
     addr := os.Getenv("LISTEN_ADDR")
 
-    log.Infof("Starting server on " + addr + ":" + port)
+    log.Info("Starting HTTP server on " + addr + ":" + port)
     return http.ListenAndServe(addr+":"+port, httpHandler)
 }
 
 func main() {
-    httptest.NewRecorder()
     if runningInLambda {
-        log.Println("Running Lambda handler.")
-        if err := runLambda(); err != nil {
-            log.Fatalf("Error running lambda handler: %v", err)
-        }
+        lambda.Start(runLambda)
     } else {
-        log.Println("Running HTTP server.")
         if err := runHTTPServer(); err != nil {
             log.Fatalf("HTTP server ended with error: %v", err)
         }

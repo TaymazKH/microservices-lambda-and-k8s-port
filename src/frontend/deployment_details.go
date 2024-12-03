@@ -30,7 +30,7 @@ func initializeLogger() {
         },
         TimestampFormat: time.RFC3339Nano,
     }
-    log.Out = os.Stderr
+    log.Out = os.Stdout
 }
 
 func loadDeploymentDetails() {

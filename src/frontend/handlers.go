@@ -94,6 +94,7 @@ func (fe *frontendServer) homeHandler(w http.ResponseWriter, r *http.Request) {
     plat = platformDetails{}
     plat.setPlatformDetails(strings.ToLower(env))
 
+    w.Header().Set("Content-Type", "text/html; charset=utf-8")
     if err := templates.ExecuteTemplate(w, "home", injectCommonTemplateData(r, map[string]interface{}{
         "show_currency": true,
         "currencies":    currencies,
@@ -182,6 +183,7 @@ func (fe *frontendServer) productHandler(w http.ResponseWriter, r *http.Request)
         }
     }
 
+    w.Header().Set("Content-Type", "text/html; charset=utf-8")
     if err := templates.ExecuteTemplate(w, "product", injectCommonTemplateData(r, map[string]interface{}{
         "ad":              fe.chooseAd(r.Context(), p.Categories, log),
         "show_currency":   true,
@@ -290,6 +292,7 @@ func (fe *frontendServer) viewCartHandler(w http.ResponseWriter, r *http.Request
     totalPrice = money.Must(money.Sum(totalPrice, *shippingCost))
     year := time.Now().Year()
 
+    w.Header().Set("Content-Type", "text/html; charset=utf-8")
     if err := templates.ExecuteTemplate(w, "cart", injectCommonTemplateData(r, map[string]interface{}{
         "currencies":       currencies,
         "recommendations":  recommendations,
@@ -376,6 +379,7 @@ func (fe *frontendServer) placeOrderHandler(w http.ResponseWriter, r *http.Reque
         return
     }
 
+    w.Header().Set("Content-Type", "text/html; charset=utf-8")
     if err := templates.ExecuteTemplate(w, "order", injectCommonTemplateData(r, map[string]interface{}{
         "show_currency":   false,
         "currencies":      currencies,
@@ -394,6 +398,7 @@ func (fe *frontendServer) assistantHandler(w http.ResponseWriter, r *http.Reques
         return
     }
 
+    w.Header().Set("Content-Type", "text/html; charset=utf-8")
     if err := templates.ExecuteTemplate(w, "assistant", injectCommonTemplateData(r, map[string]interface{}{
         "show_currency": false,
         "currencies":    currencies,
@@ -431,8 +436,9 @@ func (fe *frontendServer) getProductByID(w http.ResponseWriter, r *http.Request)
         return
     }
 
-    w.Write(jsonData)
+    w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(http.StatusOK)
+    w.Write(jsonData)
 }
 
 func (fe *frontendServer) chatBotHandler(w http.ResponseWriter, r *http.Request) {
@@ -477,10 +483,11 @@ func (fe *frontendServer) chatBotHandler(w http.ResponseWriter, r *http.Request)
         return
     }
 
+    w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(http.StatusOK)
+
     // respond with the same message
     json.NewEncoder(w).Encode(Response{Message: response.Content})
-
-    w.WriteHeader(http.StatusOK)
 }
 
 func (fe *frontendServer) setCurrencyHandler(w http.ResponseWriter, r *http.Request) {
@@ -524,6 +531,7 @@ func renderHTTPError(log logrus.FieldLogger, r *http.Request, w http.ResponseWri
     log.WithField("error", err).Error("request error")
     errMsg := fmt.Sprintf("%+v", err)
 
+    w.Header().Set("Content-Type", "text/html; charset=utf-8")
     w.WriteHeader(code)
 
     if templateErr := templates.ExecuteTemplate(w, "error", injectCommonTemplateData(r, map[string]interface{}{
