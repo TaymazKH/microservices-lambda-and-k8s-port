@@ -1,7 +1,7 @@
 const http = require('http');
 const {status} = require('@grpc/grpc-js');
 
-const {HelloRequest, ByeRequest} = require('./genproto/hello_pb');
+const {HelloRequest, ByeRequest} = require('./genproto/greeter_pb');
 const {sayHello, sayBye} = require('./greeter_service');
 
 const runningInLambda = process.env.RUN_LAMBDA === "1";

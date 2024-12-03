@@ -1,5 +1,5 @@
 const axios = require('axios');
-const {HelloResponse, ByeResponse} = require('./genproto/hello_pb');
+const {HelloResponse, ByeResponse} = require('./genproto/greeter_pb');
 const {status} = require('@grpc/grpc-js');
 
 const DEFAULT_TIMEOUT = 10;

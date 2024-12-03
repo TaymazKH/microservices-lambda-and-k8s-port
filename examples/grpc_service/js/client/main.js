@@ -1,4 +1,4 @@
-const {HelloRequest, ByeRequest} = require('./genproto/hello_pb');
+const {HelloRequest, ByeRequest} = require('./genproto/greeter_pb');
 const {sayHello, sayBye} = require('./greeter_service_stub');
 
 async function main() {
