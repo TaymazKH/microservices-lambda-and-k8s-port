@@ -1,4 +1,4 @@
-from genproto import hello_pb2 as pb
+from genproto import greeter_pb2 as pb
 from logger import get_simple_logger
 
 logger = get_simple_logger('greeterservice-logic')

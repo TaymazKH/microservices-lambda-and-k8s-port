@@ -1,5 +1,5 @@
 import argparse
-from genproto import hello_pb2 as pb
+from genproto import greeter_pb2 as pb
 from greeter_service_stub import say_hello, say_bye
 
 from logger import get_simple_logger

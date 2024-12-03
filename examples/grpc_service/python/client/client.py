@@ -3,7 +3,7 @@ import requests
 from google.protobuf.message import EncodeError, DecodeError
 
 from common import GrpcError
-from genproto import hello_pb2 as pb
+from genproto import greeter_pb2 as pb
 
 DEFAULT_TIMEOUT = 10
 
