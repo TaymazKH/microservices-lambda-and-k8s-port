@@ -50,9 +50,9 @@ func determineMessageType(rpcName string) proto.Message {
 
 // RequestData represents the structure of the incoming JSON string or HTTP request.
 type RequestData struct {
-    Body            string            `json:"body"`
     Headers         map[string]string `json:"headers"`
     IsBase64Encoded bool              `json:"isBase64Encoded"`
+    Body            string            `json:"body"`
     BinBody         []byte            `json:"-"`
 }
 
@@ -60,8 +60,8 @@ type RequestData struct {
 type ResponseData struct {
     StatusCode      int               `json:"statusCode"`
     Headers         map[string]string `json:"headers"`
-    Body            string            `json:"body"`
     IsBase64Encoded bool              `json:"isBase64Encoded"`
+    Body            string            `json:"body"`
     BinBody         []byte            `json:"-"`
 }
 
