@@ -43,27 +43,26 @@ func init() {
 
 // RequestData represents the structure of the incoming JSON string.
 type RequestData struct {
-    RawPath         string            `json:"rawPath"`
-    RawQueryString  string            `json:"rawQueryString"`
-    Body            string            `json:"body"`
-    Headers         map[string]string `json:"headers"`
-    Cookies         []string          `json:"cookies"`
-    IsBase64Encoded bool              `json:"isBase64Encoded"`
-    RequestContext  struct {
+    RequestContext struct {
         HTTP struct {
             Method string `json:"method"`
         } `json:"http"`
     } `json:"requestContext"`
-    BinBody []byte
+    RawPath         string            `json:"rawPath"`
+    RawQueryString  string            `json:"rawQueryString"`
+    Headers         map[string]string `json:"headers"`
+    Cookies         []string          `json:"cookies"`
+    IsBase64Encoded bool              `json:"isBase64Encoded"`
+    Body            string            `json:"body"`
 }
 
 // ResponseData represents the structure of the outgoing JSON string.
 type ResponseData struct {
     StatusCode      int               `json:"statusCode"`
     Headers         map[string]string `json:"headers"`
-    Body            string            `json:"body"`
-    IsBase64Encoded bool              `json:"isBase64Encoded"`
     Cookies         []string          `json:"cookies"`
+    IsBase64Encoded bool              `json:"isBase64Encoded"`
+    Body            string            `json:"body"`
 }
 
 // nonSplitHeaders is the set of header keys that should not be split based on a comma.
@@ -139,7 +138,7 @@ func reconstructHTTPRequest(reqData *RequestData) (*http.Request, error) {
     }
 
     for _, cookieStr := range reqData.Cookies {
-        parts := strings.Split("; ", cookieStr)
+        parts := strings.Split(cookieStr, "; ")
         if len(parts) == 0 {
             continue
         }
