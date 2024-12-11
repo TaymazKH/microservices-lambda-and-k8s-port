@@ -16,7 +16,7 @@ const logger = pino({
 });
 
 const runningInLambda = process.env.RUN_LAMBDA === "1";
-const defaultPort = 8080;
+const defaultPort = 7000;
 
 const GET_SUPPORTED_CURRENCIES_RPC = "get-supported-currencies";
 const CONVERT_RPC = "convert";

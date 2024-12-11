@@ -13,7 +13,7 @@ from logger import getJSONLogger
 logger = getJSONLogger('emailservice-server')
 
 RUNNING_IN_LAMBDA = os.getenv("RUN_LAMBDA") == "1"
-DEFAULT_PORT = "8080"
+DEFAULT_PORT = "8081"
 
 SEND_ORDER_CONFIRMATION_RPC = "send-order-confirmation"
 

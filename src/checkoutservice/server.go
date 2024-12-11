@@ -24,7 +24,7 @@ var (
 )
 
 const (
-    defaultPort = "8080"
+    defaultPort = "5050"
 
     placeOrderRPC = "place-order"
 )

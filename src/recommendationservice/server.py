@@ -13,7 +13,7 @@ from recommendation_service import RecommendationService as Service
 logger = getJSONLogger('recommendationservice-server')
 
 RUNNING_IN_LAMBDA = os.getenv("RUN_LAMBDA") == "1"
-DEFAULT_PORT = "8080"
+DEFAULT_PORT = "8082"
 
 LIST_RECOMMENDATIONS_RPC = "list-recommendations"
 

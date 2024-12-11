@@ -37,7 +37,7 @@ var (
 )
 
 const (
-    defaultPort = "8080"
+    defaultPort = "3550"
 
     listProductsRPC   = "list-products"
     getProductRPC     = "get-product"
