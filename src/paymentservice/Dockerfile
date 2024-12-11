@@ -6,9 +6,9 @@ COPY . .
 
 RUN npm install
 
-EXPOSE 50051
+EXPOSE 50052
 
-ENV PORT=50051
+ENV PORT=50052
 ENV LISTEN_ADDR=0.0.0.0
 
 ENTRYPOINT ["node", "server.js"]

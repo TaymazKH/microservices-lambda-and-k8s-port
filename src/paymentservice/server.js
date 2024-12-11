@@ -16,7 +16,7 @@ const logger = pino({
 });
 
 const runningInLambda = process.env.RUN_LAMBDA === "1";
-const defaultPort = 50051;
+const defaultPort = 50052;
 
 const CHARGE_RPC = "charge";
 
