@@ -26,7 +26,7 @@ var (
 )
 
 const (
-    defaultPort = "8080"
+    defaultPort = "7070"
 
     addItemRPC   = "add-item"
     getCartRPC   = "get-cart"
