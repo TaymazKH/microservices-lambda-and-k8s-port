@@ -7,9 +7,9 @@ COPY . .
 RUN go mod download
 RUN GOOS=linux go build -o ad_service .
 
-EXPOSE 8080
+EXPOSE 9555
 
-ENV PORT=8080
+ENV PORT=9555
 ENV LISTEN_ADDR=0.0.0.0
 
 ENTRYPOINT ["/app/ad_service"]

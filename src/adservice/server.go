@@ -25,7 +25,7 @@ var (
 )
 
 const (
-    defaultPort = "8080"
+    defaultPort = "9555"
 
     getAdsRPC = "get-ads"
 )
