@@ -49,7 +49,7 @@ In short, gRPC servers are replaced with the new architecture, which relies on p
   marshalled and a `ResponseData` object will be constructed based on the `running_in_lambda` variable and returned.
 - `generate_error_eesponse`: receives a non-OK gRPC status code and error message string, and constructs and returns
   a `ResponseData` object containing the error data. It's used by the decode and encode functions.
-- `main`: checks the `running_in_lambda` and invokes appropriate function.
+- `main`: checks the `running_in_lambda` variable and invokes the appropriate function.
 - `run_lambda`: the main Lambda handler. This function is invoked only if the service is running in a Lambda function.
   This function receives a `RequestData`, decodes the request, returns the `ResponseData` object in case of a bad
   request, or calls the appropriate RPC function, encodes the response or the RPC error, and finally returns it.
@@ -92,7 +92,40 @@ A stub represents a service's client. A service has as many stubs as the service
       be used if the `<SERVICE_NAME>_TIMEOUT` environment variable isn't present or has an invalid value.
     - `<service_name>_service`: is a constant string that stores the name of the service. It's used as the part for
       sending HTTP requests.
-    - RPC name constants: same as the constants in the gRPC service.
+    - RPC name constants: same as the constants with the same names in gRPC services.
 - Functions: each function in a stub (except the `init` function in Golang stubs) represents an RPC. They receive a
   proto message (same as the RPC input in the service definition) and headers, and either return a proto message or
   raise an error. They call the `marshal_request`, `send_request`, and `unmarshal_response` functions in order.
+
+## Web Service
+
+### Constants and Variables
+
+- `running_in_lambda`: same as the variable with the same name in gRPC services.
+- `base_url`: is the base URL of the service. It's optionally populated with the `BASE_URL` environment variable. It
+  must be either empty or be of the form of a valid path, beginning with a slash.
+- `http_handler`: is the main handler function of whole web service. It must map all the valid URLs to a handler
+  function. It can be a nested handler for middleware purposes, such as logging and handling sessions.
+- `default_port`: same as the constant with the same name in gRPC services.
+- `non_split_headers`: is a set of header names that violate the comma-separation rule in multi-value headers. These
+  headers can't be simply split based on a comma and need more precise handling.
+
+### Classes and Structs
+
+- `RequestData` and `ResponseData`: same as the classes with the same names in gRPC services. However, these have more
+  fields as a web service may need more data to serve.
+
+### Functions
+
+- `reconstruct_http_request`: receives a `RequestData` object and returns an HTTP request object. It initializes an HTTP
+  request object and populates its fields based on the fields of the `RequestData` object.
+- `convert_to_response_data`: receives a `ResponseData` object and returns an HTTP response object. It initializes an
+  HTT response object and populates its fields based on the fields of the `ResponseData` object.
+- `main`: checks the `running_in_lambda` variable and invokes the appropriate function.
+- `run_lambda`: the main Lambda handler. This function is invoked only if the service is running in a Lambda function.
+  This function receives a `RequestData`, reconstructs the HTTP request, initializes a response recorder, invokes the
+  HTTP handler with the response recorder as the writer, retrieves the HTTP response from the recorder, converts it to
+  a `ResponseData` object, and finally returns it.
+- `run_http_server`: the main HTTP handler. This function is invoked only if the service is not running in a Lambda
+  function. It starts an HTTP server with the `http_handler` variable as its handler, to serve on the specified address
+  and port.
