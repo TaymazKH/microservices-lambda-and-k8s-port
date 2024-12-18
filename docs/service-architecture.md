@@ -2,7 +2,7 @@
 
 This document explains how a gRPC service, a gRPC client, and a web service work in this architecture.
 
-## gRPC service
+## gRPC Service
 
 In short, gRPC servers are replaced with the new architecture, which relies on protobuf marshalling.
 
@@ -15,9 +15,9 @@ In short, gRPC servers are replaced with the new architecture, which relies on p
   the value of `1` is present.
 - `default_port`: This constant is the default port to be used when starting an HTTP server. It can be overwritten with
   an environment variable named `PORT`.
-- RPC constants: These are string constants that have a name of the form `<rpc>_RPC`, with the `<rpc>` section being the
-  name of an RPC function in the proto service definition. These constants are used to indicate which RPC function the
-  client wanted to call.
+- RPC name constants: These are string constants that have a name of the form `<RPC_NAME>_RPC`, with the `<RPC_NAME>`
+  section being the name of an RPC function in the proto service definition. These constants are used to indicate which
+  RPC function the client wanted to call.
 
 ### Classes and Structs
 
@@ -56,3 +56,43 @@ In short, gRPC servers are replaced with the new architecture, which relies on p
 - `run_http_server`: the main HTTP handler. This function is invoked only if the service is not running in a Lambda
   function. It defines a handler function which has the exact same functionally as the Lambda handler, and starts an
   HTTP server to serve on the specified address and port.
+
+## gRPC Client
+
+### Constants and Variables
+
+- `default_timeout`: the default timeout interval when sending a request. It can be overwritten by an environment
+  variable.
+
+### Functions
+
+- `determine_message_type`: determines the output message type based on the `rpc_name` string value. The output of this
+  function is used by the `unmarshal_response` function to correctly unmarshall the proto message. It's assumed that
+  the RPC name is a valid value.
+- `send_request`: receives the address, service information, binary request data, headers, and some other data to send
+  an HTTP request and return the response body and headers. It sets the `rpc-name` and `content-type` headers and sends
+  the binary data as a POST request to `<addr>/<service_name>` with the given timeout. It reads the response body and
+  headers and returns them. An error is raised in case of any failure or non 200 status code.
+- `marshal_request`: simply marshalls the proto message object and returns the binary data.
+- `unmarshal_response`: receives the outputs of the `send_request` function and the RPC name, and either returns the
+  unmarshalled response or raises an error, which may be an RPC error that's returned by the server or an error that has
+  occurred in this function. An error is raised if the `grpc-status` header is missing or has an invalid value, or the
+  response body can't be unmarshalled. If the gRPC status code indicates success the binary data will be unmarshalled to
+  a proto message based on the output of the `determine_message_type` function. If not, the RPC error will be
+  reconstructed with the code and the error message.
+
+### Stubs
+
+A stub represents a service's client. A service has as many stubs as the services it depends on. A stub has these parts:
+
+- Constants and Variables:
+    - `<service_name>_addr`: is the address of the service. An environment variable with the name
+      of `<SERVICE_NAME>_ADDR` must be present to populate this variable.
+    - `<service_name>_timeout`: is the timeout interval used when calling this service's RPC. The default timeout will
+      be used if the `<SERVICE_NAME>_TIMEOUT` environment variable isn't present or has an invalid value.
+    - `<service_name>_service`: is a constant string that stores the name of the service. It's used as the part for
+      sending HTTP requests.
+    - RPC name constants: same as the constants in the gRPC service.
+- Functions: each function in a stub (except the `init` function in Golang stubs) represents an RPC. They receive a
+  proto message (same as the RPC input in the service definition) and headers, and either return a proto message or
+  raise an error. They call the `marshal_request`, `send_request`, and `unmarshal_response` functions in order.
