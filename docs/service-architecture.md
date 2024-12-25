@@ -28,7 +28,7 @@ In short, gRPC servers are replaced with the new architecture, which relies on p
 - `ResponseData`: This class represents responses the Lambda function may return. The objects of this class are
   serialized to JSON to be returned to the invoker. See the above link for the response format.
 
-### Functions
+### Server Functions
 
 - `call_rpc`: receives a proto message object and a `RequestData` object and invokes the appropriate RPC function based
   on the `rpc-name` header. The `RequestData` object is only used to retrieve the headers. It's assumed that
@@ -56,6 +56,29 @@ In short, gRPC servers are replaced with the new architecture, which relies on p
 - `run_http_server`: the main HTTP handler. This function is invoked only if the service is not running in a Lambda
   function. It defines a handler function which has the exact same functionally as the Lambda handler, and starts an
   HTTP server to serve on the specified address and port.
+
+### RPC Functions
+
+These functions are located in a file with the same name as the service. These are the main RPC handlers and each
+correspond to an RPC in the proto service definition. These functions must have this structure:
+
+- Inputs:
+    1. A proto request message. All the RPC functions must have only one message input. If an RPC requires more than one
+       argument, a new message type must be defined, containing all the arguments.
+    2. A header map. The headers are used for communicating context between the client and the server, such as the
+       timeout. Services may define their own structure for communicating context, such as defining custom headers.
+- Outputs:
+    1. A proto response message. All the RPC functions must have only one message output. If an RPC requires more than
+       one argument, a new message type must be defined.
+- Errors:
+    1. A gRPC error. A function may raise a gRPC error containing a gRPC status code and an error message. Services may
+       use the error message to communicate external data and traces, for example, by using a JSON string as the
+       message. For each language, the following methods must be used to instantiate an error:
+        - Golang: The `Error` and `Errorf` functions, imported from `google.golang.org/grpc/status`.
+        - JS: Simply by instantiating an object with two fields named `code` and `message` (like
+          this: `throw {code: status.NOT_FOUND, message: "Not Found"};`). You may import and use the `status` package
+          from `@grpc/grpc-js`.
+        - Python: By using the `GrpcError` class in the `common.py` file that is provided in every Python service.
 
 ## gRPC Client
 
@@ -94,10 +117,16 @@ A stub represents a service's client. A service has as many stubs as the service
       sending HTTP requests.
     - RPC name constants: same as the constants with the same names in gRPC services.
 - Functions: each function in a stub (except the `init` function in Golang stubs) represents an RPC. They receive a
-  proto message (same as the RPC input in the service definition) and headers, and either return a proto message or
-  raise an error. They call the `marshal_request`, `send_request`, and `unmarshal_response` functions in order.
+  proto message (same as the RPC input in the service definition) and headers (as a way to communicate context), and
+  either return a proto message or raise an error. They call the `marshal_request`, `send_request`,
+  and `unmarshal_response` functions in order.
 
 ## Web Service
+
+In our architecture, web services are created directly from normal HTTP servers by attaching the Lambda integration to
+the existing code. In Lambda, HTTP requests are reconstructed from Lambda requests, then the existing HTTP handlers are
+invoked, and finally the HTTP response is captured and converted to a Lambda Response. This was to make porting existing
+services much easier.
 
 ### Constants and Variables
 
@@ -115,7 +144,7 @@ A stub represents a service's client. A service has as many stubs as the service
 - `RequestData` and `ResponseData`: same as the classes with the same names in gRPC services. However, these have more
   fields as a web service may need more data to serve.
 
-### Functions
+### Server Functions
 
 - `reconstruct_http_request`: receives a `RequestData` object and returns an HTTP request object. It initializes an HTTP
   request object and populates its fields based on the fields of the `RequestData` object.
@@ -129,3 +158,8 @@ A stub represents a service's client. A service has as many stubs as the service
 - `run_http_server`: the main HTTP handler. This function is invoked only if the service is not running in a Lambda
   function. It starts an HTTP server with the `http_handler` variable as its handler, to serve on the specified address
   and port.
+
+### Handler Functions
+
+These functions are the main HTTP handlers and located in a file named `handlers`. They have the same structure as
+typical HTTP handlers in a server (in case of Golang, this means they take a writer and a request as arguments). 
