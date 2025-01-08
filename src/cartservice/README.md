@@ -1,3 +1,7 @@
+## Language
+
+This service was translated to Golang to simply the porting process and avoid complications of using C#.
+
 ## Setting Up a Redis Cache
 
 This service utilizes a cache system to store carts. Two cache systems are implemented for this service: a Redis cache
