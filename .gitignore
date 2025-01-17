@@ -1,9 +1,10 @@
-.idea
+*.orig
+.idea/
+.vscode/
 __pycache__/
 bootstrap
 deployment.zip
 genproto/
 node_modules/
 package-lock.json
-service
 site_packages/
