@@ -1,4 +1,5 @@
-.idea
+*.orig
+.idea/
 .vscode/
 __pycache__/
 bootstrap
