@@ -41,8 +41,9 @@ Follow these simple instructions to develop a gRPC service with minimal effort:
     4. \[Optional\] Add any other variable, constant, or piece of code you may need.
 5. Edit the files for your desired deployment method:
     - Lambda: update the `deployment.sh` script to contain your desired files in the deployment package.
-    - Docker: edit the service name and entrypoint in the `Dockerfile`. Optionally, edit the `.dockerignore` file to
-      ignore any file you don't want in your container/image.
+    - Docker: edit the `Dockerfile` to copy your desired files, install dependencies, and declare environment variables.
+      Optionally, change the service's name in the `Dockerfile` and edit the `.dockerignore` file to ignore any file you
+      don't want in your container/image.
 
 Your service is now ready to be deployed. You may choose to further work on your service of course.
 
@@ -78,3 +79,9 @@ Follow these simple instructions to develop a web service with minimal effort:
 5. Edit the deployment script or the docker-related files for your desired deployment method.
 
 Your service is now ready to be deployed. You may choose to further work on your service of course.
+
+### Mixed Services
+
+You may also want to have services that are gRPC clients and gRPC/web servers. For this purpose, you can simply have the
+client's code alongside the server's code. The [checkout service](../src/checkoutservice)
+and [`frontend`](../src/frontend) are some good examples.
