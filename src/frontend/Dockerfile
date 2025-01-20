@@ -1,13 +1,24 @@
-FROM golang:1.22.3@sha256:f43c6f049f04cbbaeb28f0aad3eea15274a7d0a7899a617d0037aec48d7ab010
+FROM golang:1.22.3 AS builder
 
 WORKDIR /app
 
-COPY . .
-
+COPY go.mod go.sum ./
 RUN go mod download
-RUN GOOS=linux go build -o frontend_service .
 
-EXPOSE 8080
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -o frontend_service .
+
+FROM alpine:3.21.2
+
+WORKDIR /app
+
+RUN apk add --no-cache ca-certificates
+
+COPY --from=builder /app/frontend_service ./
+RUN chmod +x frontend_service
+
+COPY ./templates ./templates
+COPY ./static ./static
 
 ENV PORT=8080
 ENV LISTEN_ADDR=0.0.0.0
@@ -19,4 +30,5 @@ ENV PRODUCT_CATALOG_SERVICE_ADDR="http://my-product-catalog-service:3550"
 ENV RECOMMENDATION_SERVICE_ADDR="http://my-recommendation-service:8082"
 ENV SHIPPING_SERVICE_ADDR="http://my-shipping-service:50053"
 
+EXPOSE 8080
 ENTRYPOINT ["/app/frontend_service"]

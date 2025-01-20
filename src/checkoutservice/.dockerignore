@@ -1,4 +1,5 @@
 bootstrap
 deployment.sh
 deployment.zip
+genproto.sh
 README.md

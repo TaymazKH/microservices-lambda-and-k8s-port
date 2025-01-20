@@ -1,4 +1,5 @@
 deployment.sh
 deployment.zip
+genproto.sh
 requirements.in
 site_packages

@@ -1,14 +1,21 @@
-FROM node:20.18.0@sha256:a7a3b7ec6de4b11bb2d673b31de9d28c6da09c557ee65453672c8e4f754c23fc
+FROM node:20.18.0-slim AS builder
 
 WORKDIR /app
 
+COPY package*.json ./
+RUN npm install --production
+
+FROM alpine:3.21.2
+
+RUN apk add --no-cache nodejs
+
+WORKDIR /app
+
+COPY --from=builder /app/node_modules ./node_modules
 COPY . .
-
-RUN npm install
-
-EXPOSE 50052
 
 ENV PORT=50052
 ENV LISTEN_ADDR=0.0.0.0
 
+EXPOSE 50052
 ENTRYPOINT ["node", "server.js"]
