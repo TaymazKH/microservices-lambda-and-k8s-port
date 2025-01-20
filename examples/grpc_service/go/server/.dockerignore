@@ -1,3 +1,4 @@
 bootstrap
 deployment.sh
 deployment.zip
+genproto.sh
