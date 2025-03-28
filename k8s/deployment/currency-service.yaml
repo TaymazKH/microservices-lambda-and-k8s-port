@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: currency-service
+  labels:
+    app: currency-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: currency-service
+  template:
+    metadata:
+      labels:
+        app: currency-service
+    spec:
+      containers:
+        - name: server
+          image: ghcr.io/taymazkh/currency-service:latest
+          ports:
+            - containerPort: 7000
