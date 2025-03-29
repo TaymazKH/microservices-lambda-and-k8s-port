@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: checkout-service
+  labels:
+    app: checkout-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: checkout-service
+  template:
+    metadata:
+      labels:
+        app: checkout-service
+    spec:
+      containers:
+        - name: server
+          image: ghcr.io/taymazkh/checkout-service:latest
+          ports:
+            - containerPort: 5050
+          env:
+            - name: CART_SERVICE_ADDR
+              value: "http://cart-service:7070"
+            - name: CURRENCY_SERVICE_ADDR
+              value: "http://currency-service:7000"
+            - name: EMAIL_SERVICE_ADDR
+              value: "http://email-service:8081"
+            - name: PAYMENT_SERVICE_ADDR
+              value: "http://payment-service:50052"
+            - name: PRODUCT_CATALOG_SERVICE_ADDR
+              value: "http://product-catalog-service:3550"
+            - name: SHIPPING_SERVICE_ADDR
+              value: "http://shipping-service:50053"

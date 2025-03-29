@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-service
+  labels:
+    app: frontend-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend-service
+  template:
+    metadata:
+      labels:
+        app: frontend-service
+    spec:
+      containers:
+        - name: server
+          image: ghcr.io/taymazkh/frontend-service:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: AD_SERVICE_ADDR
+              value: "http://ad-service:9555"
+            - name: CART_SERVICE_ADDR
+              value: "http://cart-service:7070"
+            - name: CHECKOUT_SERVICE_ADDR
+              value: "http://checkout-service:5050"
+            - name: CURRENCY_SERVICE_ADDR
+              value: "http://currency-service:7000"
+            - name: PRODUCT_CATALOG_SERVICE_ADDR
+              value: "http://product-catalog-service:3550"
+            - name: RECOMMENDATION_SERVICE_ADDR
+              value: "http://recommendation-service:8082"
+            - name: SHIPPING_SERVICE_ADDR
+              value: "http://shipping-service:50053"
