@@ -34,7 +34,7 @@ func aboutHandler(w http.ResponseWriter, r *http.Request) {
         Message string
     }{
         Title:   "About Us",
-        Message: "This page is the about us.",
+        Message: "This page is about us.",
     }
 
     w.Header().Set("Content-Type", "text/html; charset=utf-8")
