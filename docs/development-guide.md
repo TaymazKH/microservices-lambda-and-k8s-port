@@ -2,7 +2,7 @@
 
 This is a guide to port existing services to this new architecture or develop new ones.
 
-See the `/examples` directory. It contains some basic services that
+See the [`/examples`](../examples) directory. It contains some basic services that
 demonstrate [our architecture](./service-architecture.md) in its simplest form. These services can be used as templates
 for developing new services.
 

@@ -4,7 +4,7 @@ You can deploy each service either on AWS Lambda, in a docker container, or on y
 
 ## AWS Lambda
 
-To deploy a service in a Lambda function follow these steps:
+To deploy a service in a Lambda function, follow these steps:
 
 1. Make sure you have the means to compile proto files.
     - Golang & JS: Install protocol buffer compiler. Follow this [tutorial](https://grpc.io/docs/protoc-installation/).
@@ -24,9 +24,9 @@ To deploy a service in a Lambda function follow these steps:
 
 ## Docker
 
-To deploy a service in a docker container follow these steps:
+To deploy a service in a docker container, follow these steps:
 
-1. Do the first two steps of the [AWS Lambda](#aws-lambda) section.
+1. Follow the first two steps of the [AWS Lambda](#aws-lambda) section.
 2. A service that depends on other services uses environment variables to store their addresses. You may either...
     - ... replace the addresses in the docker file.
     - ... override the addresses when running a container.
@@ -35,11 +35,22 @@ To deploy a service in a docker container follow these steps:
 3. Build the image based on the docker file.
 4. Run a container based on that image. Optionally, override any of the environment variables or set up a network.
 
-## Local
+## Local Cluster
 
-To deploy a service locally follow these steps:
+To deploy a service in a local Kubernetes Cluster, follow these steps:
 
-1. Do the first two steps of the [AWS Lambda](#aws-lambda) section.
+1. The images of the services are needed in order to deploy them. You may either...
+    - ... use prebuilt images on [GitHub Container Registry](https://github.com/TaymazKH?tab=packages).
+    - ... build the images yourself, and either use them locally or push them to a registry of your choice. Follow the
+      first two steps of the [AWS Lambda](#aws-lambda) section before building the images.
+2. Start and configure your cluster.
+3. Apply the [deployment manifests](../k8s/deployment). Then, apply the [service manifests](../k8s/service/local).
+
+## Local (VM-less)
+
+To deploy a service locally, follow these steps:
+
+1. Follow the first two steps of the [AWS Lambda](#aws-lambda) section.
 2. Install the dependencies.
     - Golang: `go mod download`.
     - JS: `npm install`.
