@@ -19,3 +19,10 @@ spec:
           image: ghcr.io/taymazkh/web-go:latest
           ports:
             - containerPort: 8080
+          resources:
+            requests:
+              cpu: 150m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
