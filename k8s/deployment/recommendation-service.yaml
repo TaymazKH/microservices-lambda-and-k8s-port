@@ -22,3 +22,10 @@ spec:
           env:
             - name: PRODUCT_CATALOG_SERVICE_ADDR
               value: "http://product-catalog-service:3550"
+          resources:
+            requests:
+              cpu: 150m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi

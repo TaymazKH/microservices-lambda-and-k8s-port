@@ -19,3 +19,10 @@ spec:
           image: ghcr.io/taymazkh/currency-service:latest
           ports:
             - containerPort: 7000
+          resources:
+            requests:
+              cpu: 150m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi

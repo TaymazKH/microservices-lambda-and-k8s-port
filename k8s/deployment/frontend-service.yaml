@@ -34,3 +34,10 @@ spec:
               value: "http://recommendation-service:8082"
             - name: SHIPPING_SERVICE_ADDR
               value: "http://shipping-service:50053"
+          resources:
+            requests:
+              cpu: 150m
+              memory: 64Mi
+            limits:
+              cpu: 300m
+              memory: 256Mi

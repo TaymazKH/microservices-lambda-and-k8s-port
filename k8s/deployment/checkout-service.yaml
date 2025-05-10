@@ -32,3 +32,10 @@ spec:
               value: "http://product-catalog-service:3550"
             - name: SHIPPING_SERVICE_ADDR
               value: "http://shipping-service:50053"
+          resources:
+            requests:
+              cpu: 150m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
