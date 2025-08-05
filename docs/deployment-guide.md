@@ -46,6 +46,16 @@ To deploy a service in a local Kubernetes Cluster, follow these steps:
 2. Start and configure your cluster.
 3. Apply the [deployment manifests](../k8s/deployment). Then, apply the [service manifests](../k8s/service/local).
 
+## EKS Cluster
+
+To deploy a service in an EKS Cluster, follow these steps:
+
+1. Build the images of the services or use the prebuilt ones.
+2. Start and configure your EKS cluster with correct IAM roles.
+3. Create a node group with correct IAM role.
+4. Create a target group and a network load balancer.
+5. Apply the deployment manifests and service manifests.
+
 ## Local (VM-less)
 
 To deploy a service locally, follow these steps:

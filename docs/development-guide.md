@@ -8,7 +8,7 @@ for developing new services.
 
 ## Examples
 
-There provided example services are structured in this way:
+The provided example services are structured in this way:
 
 - `grpc_service`: This directory contains examples for gRPC services and clients in different languages. All the
   services are simple greeter services, as seen by their shared proto service definition in the `protos` directory.
@@ -17,8 +17,9 @@ There provided example services are structured in this way:
     - `grpc_service/<lang>/client`: This directory contains a simple gRPC client in the specified language. Note that
       these clients are not made to be deployed in AWS Lambda or Docker, rather they are for testing purposes as
       instructed in the [testing guide](./testing.md).
-- `web_service`: This directory contains examples for web services in different languages. All the services are simple
-  websites with only few pages.
+- `web_service`: This directory contains an example for a web service in Golang. The service is a simple website with
+  only few pages.
+- `k8s`: This directory contains deployment and service manifests.
 
 ## Development
 
@@ -44,6 +45,9 @@ Follow these simple instructions to develop a gRPC service with minimal effort:
     - Docker: edit the `Dockerfile` to copy your desired files, install dependencies, and declare environment variables.
       Optionally, change the service's name in the `Dockerfile` and edit the `.dockerignore` file to ignore any file you
       don't want in your container/image.
+    - Cluster: after editing the docker file, build an image and push it to a registry of your choice. Copy the
+      deployment manifest and edit it to use the correct image and port, and declare environment variables and resource
+      limits. Do the same for the service manifest.
 
 Your service is now ready to be deployed. You may choose to further work on your service of course.
 
@@ -76,7 +80,7 @@ Follow these simple instructions to develop a web service with minimal effort:
     2. \[Optional\] If your code needs to work with multi-value headers that violate the comma-separated rule, you need
        to implement a parser for that. For this purpose, edit the `non_split_headers` variable and part of
        the `reconstruct_http_request` function that handles header parsing.
-5. Edit the deployment script or the docker-related files for your desired deployment method.
+5. Edit the deployment script, the docker-related files, or the manifests for your desired deployment method.
 
 Your service is now ready to be deployed. You may choose to further work on your service of course.
 
